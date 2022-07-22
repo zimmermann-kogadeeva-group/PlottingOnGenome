@@ -61,7 +61,7 @@ Genome contigs are plotted in a circular graph. All sequences that were successf
 ![B.uni mapped to genome](examples/B.uni_mapped_to_genome.png)
 
 ### Plotting single sequences on genome 
-Your mapped sequences are plotted individually onto the genome, including genes that are within or in close proximity to your sequence. 
+Your mapped sequences are plotted individually onto the genome, including genes that are within or in close proximity to your sequence (see below). The direction of your sequence as well as the genes on the genome are indicated with pointy tips of 
 
 
 ![B.uni Colony 32 mapped to genome](examples/B.uniformis_32_pZE21_mapped_to_genome.png)
