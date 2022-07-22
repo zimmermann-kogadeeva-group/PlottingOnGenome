@@ -118,7 +118,7 @@ def main(genome_file, annot_file, locus_file, output_prefix):
     # create pdf file and figure
     pdf = PdfPages(output_prefix + "seqs_mapped_to_genome.pdf")
       
-    #For each entry in mappedHitContigs: if the element of mappedHitContigs is in f_contigNames list, then list contig name in curcontigNames list. Otherwise list the r_contigNames name in the list
+    #List all contig names that have sequences mapped to them
     #loop thorugh all mappedHitContigs and plot sequences located there onto the genome. 
     for val in mappedHitContigs:
     
