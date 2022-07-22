@@ -14,3 +14,6 @@ output_prefix = "Output/buni"
 seq_file = "Data/Buni_merged_seq_data_renamed.fasta"
 images_prefix = "Output/images/buni_"
 
+Example output:
+![example](examples/C.comes_33_mapped_to_genome_new.png)
+
