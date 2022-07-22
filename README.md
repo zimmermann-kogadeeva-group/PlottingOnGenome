@@ -55,14 +55,13 @@ Output = .tsv (annot_file)
 
 ## Plotting
 All contigs downloaded from NCBI will be plotted in a cicular graph. However, only the contigs that have sequences mapped to them will be labelled. 
-### Plotting on circular genome
+### Plotting onto circular genome
 Genome contigs are plotted in a circular graph. All sequences that were successfully blasted, annotated and are not longer than 1e6 bp will be mapped onto the circular genome. Their location is indicated via a black streak and labelled with the respective seq_id (see example below). 
 
 ![B.uni mapped to genome](examples/B.uni_mapped_to_genome.png)
 
-### Plotting single sequences on genome 
-Your mapped sequences are plotted individually onto the genome, including genes that are within or in close proximity to your sequence (see below). The direction of your sequence as well as the genes on the genome are indicated with pointy tips of 
-
+### Plotting single sequences onto linear genome 
+Your mapped sequences are plotted individually onto the genome, including genes that are within or in close proximity to your sequence (see below). The pointy tips of chunks indicate the direction of your sequence/ gene (right = + ; left = - ).
 
 ![B.uni Colony 32 mapped to genome](examples/B.uniformis_32_pZE21_mapped_to_genome.png)
 
