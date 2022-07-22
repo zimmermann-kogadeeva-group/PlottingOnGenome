@@ -49,6 +49,7 @@ Input = .fasta (seq_file, genome_file)
 Output = .txt (blast_file)
 
 ## Annotation
+Annotation of your Blasted sequences require the locus_file which was downloaded together with the genome_file from NCBI. 
 
 Input = .txt (blast_file), .csv (locus_file)
 
