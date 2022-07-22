@@ -6,16 +6,32 @@
 BLAST is required.
 
 ## Required inputs - examples
+You need to provide 5 different inputs for running the PlottingOnGenome pipeline: search_term, email, output_prefix, seq_file, images_prefix (optional). 
 
-search_term = "Bacteroides uniformis ATCC 8492 [orgn] 82G1 AND refseq AND complete genome"
+##### search_term
+The search_term is required for downloading the genome of your interest from NCBI.
 
-email = "katarina.erbstein@embl.de"
+Example: search_term = "Bacteroides uniformis ATCC 8492 [orgn] 82G1 AND refseq AND complete genome"
 
-output_prefix = "Output/buni"
+##### email
+The email input is required for downloading the genome of your interest from NCBI.
 
-seq_file = "Data/Buni_merged_seq_data_renamed.fasta"
+Example: email = "katarina.erbstein@embl.de"
 
-images_prefix = "Output/images/buni_"
+##### output_prefix
+The output_prefix defines where all files that are generated during the run are saved.
+
+Example: output_prefix = "Output/buni"
+
+##### seq_file
+The seq_file contains all your sequencing data which you later on want to map onto the genome.
+
+Example: seq_file = "Data/Buni_merged_seq_data_renamed.fasta"
+
+#### images_prefix
+You can define an images_prefix you want to save images in a different folder than any other output.
+
+Example: images_prefix = "Output/images/buni_"
 
 ## Download genome from NCBI - "search_term"
 For dowloading the genome of your interest from NCBI you need to provide a search_term. It is important that the search term results in a single genome being downloaded from NCBI, as you will otherwise later have issues with annotation and plotting.
