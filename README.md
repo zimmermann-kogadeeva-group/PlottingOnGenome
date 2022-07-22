@@ -6,7 +6,7 @@
 BLAST is required.
 
 ## Required inputs - examples
-You need to provide 5 different inputs for running the PlottingOnGenome pipeline: search_term, email, output_prefix, seq_file, images_prefix (optional). 
+You need to provide up to 5 different inputs for running the PlottingOnGenome pipeline: search_term, email, output_prefix, seq_file, images_prefix (optional). 
 
 ##### search_term
 The search_term is required for downloading the genome of your interest from NCBI.
