@@ -1,8 +1,8 @@
 
-from get_genome import main as get_genome
-from run_blast import main as run_blast
-from annotate_sequences import main as annotate_sequences
-from plotting import main as plotting
+from .get_genome import main as get_genome
+from .run_blast import main as run_blast
+from .annotate_sequences import main as annotate_sequences
+from .plotting import main as plotting
 
 def run_pipeline(seq_file, search_term, email, output_prefix, images_prefix=None):
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 import PySimpleGUI as sg
-
-from main import run_pipeline
+from plotting_on_genome import run_pipeline
 
 
 def main():
