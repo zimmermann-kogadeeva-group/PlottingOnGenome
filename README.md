@@ -37,7 +37,7 @@ Forward = "Organism_Colonynr_xx_F"   ⟹   Example = ">B.uniformis_10_pZE21_F"
 
 Reverse = "Organism_Colonynr_xx_R"   ⟹   Example = ">B.uniformis_15_pZE21_R"   
 
-You can enter any additional information in "xx". But, sequences MUST end with either "_F" for forward reads or "_R" for reverse reads. 
+You can enter any additional information in "xx". But, sequences MUST end with either "_F" for forward reads or "_R" for reverse reads and MUST NOT include spaces.
 
 ## BLASTing of seq_file
 You need to have BLAST installed on the device you're running the pipeline on. The database created from the downloaded genome will be used for BLASTing of your sequences. 
@@ -55,5 +55,14 @@ Output = .tsv (annot_file)
 
 ## Plotting
 All contigs downloaded from NCBI will be plotted in a cicular graph. However, only the contigs that have sequences mapped to them will be labelled. 
-### PLotting on circular genome
-Genome contigs are plotted in a circular graph. All sequences that were successfully blasted, annotated and are not longer than 1e6 bp will be mapped onto the circular genome. Their locsation is indicated
+### Plotting on circular genome
+Genome contigs are plotted in a circular graph. All sequences that were successfully blasted, annotated and are not longer than 1e6 bp will be mapped onto the circular genome. Their location is indicated via a black streak and labelled with the respective seq_id (see example below). 
+
+![B.uni mapped to genome](examples/B.uni_mapped_to_genome.png)
+
+### Plotting single sequences on genome 
+Your mapped sequences are plotted individually onto the genome, including genes that are within or in close proximity to your sequence. 
+
+
+![B.uni Colony 32 mapped to genome](examples/B.uniformis_32_pZE21_mapped_to_genome.png)
+
