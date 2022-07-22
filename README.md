@@ -28,7 +28,7 @@ The seq_file contains all your sequencing data which you later on want to map on
 
 Example: seq_file = "Data/Buni_merged_seq_data_renamed.fasta"
 
-#### images_prefix
+##### images_prefix
 You can define an images_prefix you want to save images in a different folder than any other output.
 
 Example: images_prefix = "Output/images/buni_"
