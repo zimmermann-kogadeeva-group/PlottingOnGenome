@@ -104,6 +104,7 @@ def main(genome_file, annot_file, locus_file, output_prefix):
     #extract gene names from gene locations file. Exclude "na" and convert it into a list
     geneLocationsNames = geneLocations["locus_tag"].dropna()
     
+    # create new columns in the geneMappingAlignment array
     geneMappingAlignment["seq_start"] = [x["f_start"] if x["direction"] == "+" else x["r_start"] for i, x in geneMappingAlignment.iterrows()] #true start of the sequence
     geneMappingAlignment["seq_end"] = [x["r_start"] if x["direction"] == "+" else x["f_start"] for i, x in geneMappingAlignment.iterrows()] #true end of the sequence
     geneMappingAlignment["new_start"] = geneMappingAlignment["seq_start"] - 5500 #modified start of the sequence so that we can plot the area on the genome around the sequence
@@ -132,7 +133,7 @@ def main(genome_file, annot_file, locus_file, output_prefix):
     
         geneLocationsSubset = geneLocations[geneLocations["locus_tag"].isin(genes_split)]
     
-        # create new columns in the geneMappingAlignment array
+        # sort rows according to "new_start" value so that sequences located at the beginning of the genome are displayed before those further downstream.
         geneMappingSubset.sort_values(by="new_start", inplace=True)
         
         #only display genes that are within the segment
