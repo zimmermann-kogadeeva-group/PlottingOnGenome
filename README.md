@@ -66,3 +66,5 @@ Your mapped sequences are plotted individually onto the genome, including genes 
 
 ![B.uni Colony 32 mapped to genome](examples/B.uniformis_32_pZE21_mapped_to_genome.png)
 
+
+
