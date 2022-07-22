@@ -1,4 +1,6 @@
 
+from os import path, makedirs
+
 from .get_genome import main as get_genome
 from .run_blast import main as run_blast
 from .annotate_sequences import main as annotate_sequences
@@ -8,6 +10,12 @@ def run_pipeline(seq_file, search_term, email, output_prefix, images_prefix=None
 
     if images_prefix is None:
         images_prefix = output_prefix
+
+    output_dir = path.dirname(output_prefix)
+    if not path.exists(output_dir): makedirs(output_dir)
+    
+    images_dir = path.dirname(images_prefix)
+    if not path.exists(images_dir): makedirs(images_dir)
 
     genome_file = f"{output_prefix}_combined_contigs.fasta"
     blast_file = f"{output_prefix}_blast_alignment.txt"
