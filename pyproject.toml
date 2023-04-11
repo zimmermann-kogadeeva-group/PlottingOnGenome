@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plotting_on_genome"
+version = "0.0.2"
+requires-python = ">=3.6"
+description = "Package for making genome related plots"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{ name = "Bartosz Bartmanski", email = "bartosz.bartmanski@embl.de" }]
+
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "biopython",
+    "pandas",
+    "tqdm",
+    "dna_features_viewer"
+]
+
+[project.scripts]
+calendar-update = "plottin_on_genome.__main__:main"
+
+[project.urls]
+"Homepage" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome"
+"Bug tracker" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome/issues/"

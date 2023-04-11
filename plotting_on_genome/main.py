@@ -6,6 +6,7 @@ from .run_blast import main as run_blast
 from .annotate_sequences import main as annotate_sequences
 from .plotting import main as plotting
 
+
 def run_pipeline(seq_file, search_term, email, output_prefix, images_prefix=None):
 
     if images_prefix is None:
