@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-plotting-on-genome = "plottin_on_genome.__main__:main"
+plotting-on-genome = "plotting_on_genome.__main__:main"
 
 [project.urls]
 "Homepage" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome"
