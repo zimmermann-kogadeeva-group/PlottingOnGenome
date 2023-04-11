@@ -17,11 +17,13 @@ dependencies = [
     "biopython",
     "pandas",
     "tqdm",
-    "dna_features_viewer"
+    "dna_features_viewer",
+    "PySimpleGUI"
 ]
 
 [project.scripts]
-plotting-on-genome = "plotting_on_genome.__main__:main"
+pog = "plotting_on_genome.__main__:main"
+pog-gui = "plotting_on_genome.gui:main"
 
 [project.urls]
 "Homepage" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome"
