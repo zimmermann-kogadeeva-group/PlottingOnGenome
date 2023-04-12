@@ -8,19 +8,19 @@ def main():
 
     # All the stuff inside your window.
     names = [
-        [sg.Text("sequence file")],
         [sg.Text("search term")],
         [sg.Text("email")],
         [sg.Text("output prefix")],
-        [sg.Text("images prefix (optional)")]
+        [sg.Text("images prefix (optional)")],
+        [sg.Text("sequence file")]
     ]
 
     inputs = [
-        [sg.InputText(key="seq_file",)],
         [sg.InputText(key="search_term")],
         [sg.InputText(key="email")],
         [sg.InputText(key="output_prefix")],
-        [sg.InputText(key="images_prefix")]
+        [sg.InputText(key="images_prefix")],
+        [sg.FilesBrowse('Open file', key="seq_file")]
     ]
 
     layout = [
