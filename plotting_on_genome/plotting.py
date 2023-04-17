@@ -95,8 +95,8 @@ def main(genome_file, annot_file, locus_file, output_prefix):
     record.plot(ax=ax)
     
     #record.plot(fontsize = 8)
-    fig.savefig(output_prefix + "mapped_to_genome.pdf", transparent=True)
-    fig.savefig(output_prefix + "mapped_to_genome.png", transparent=True)
+    fig.savefig(output_prefix + "_mapped_to_genome.pdf", transparent=True)
+    fig.savefig(output_prefix + "_mapped_to_genome.png", transparent=True)
     
     #### PLOTTING ####
     #plot sequences onto the referene genome and display genes from they contain
@@ -116,7 +116,7 @@ def main(genome_file, annot_file, locus_file, output_prefix):
     r_contigNames = list(geneMappingAlignment["r_alignment_subject"])
     
     # create pdf file and figure
-    pdf = PdfPages(output_prefix + "seqs_mapped_to_genome.pdf")
+    pdf = PdfPages(output_prefix + "_seqs_mapped_to_genome.pdf")
       
     #List all contig names that have sequences mapped to them
     #loop thorugh all mappedHitContigs and plot sequences located there onto the genome. 
@@ -179,7 +179,7 @@ def main(genome_file, annot_file, locus_file, output_prefix):
             axs[1].xaxis.set_major_locator(plt.MaxNLocator(8))
              
             #save images as separate .png 
-            plt.savefig(output_prefix + row["Name"] + "mapped_to_genome" + ".png", transparent=True)
+            plt.savefig(output_prefix + row["Name"] + "_mapped_to_genome" + ".png", transparent=True)
             #save appended images as .pdf
             pdf.savefig(fig)
     pdf.close()

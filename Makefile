@@ -19,7 +19,10 @@ requirements.txt:
 install_precommit: .git/hooks/pre-commit
 
 clean:
-	rm -rf .venv *.egg-info build dist
+	rm -rf *.egg-info build dist \
+		plotting_on_genome/__pycache__/ \
+		plotting_on_genome.spec
 
 dist/plotting_on_genome:
-	pyinstaller -F -w -n $(notdir $@) pyinstaller_entry.py
+	${ACTIVATE} && pyinstaller -F -w -n $(notdir $@) pyinstaller_entry.py
+

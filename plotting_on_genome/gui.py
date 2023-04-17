@@ -9,22 +9,19 @@ def main():
     # All the stuff inside your window.
     names = [
         [sg.Text("search term")],
-        [sg.Text("email")],
-        [sg.Text("output prefix")],
-        [sg.Text("images prefix (optional)")],
-        [sg.Text("sequence file")]
+        [sg.Text("email")]
     ]
 
     inputs = [
         [sg.InputText(key="search_term")],
         [sg.InputText(key="email")],
-        [sg.InputText(key="output_prefix")],
-        [sg.InputText(key="images_prefix")],
-        [sg.FilesBrowse('Open file', key="seq_file")]
     ]
 
     layout = [
         [sg.Column(names), sg.Column(inputs)], 
+        [sg.FilesBrowse('Sequences file', key="seq_file"),
+         sg.FolderBrowse("Output folder", key="output_prefix"),
+         sg.FolderBrowse("Images folder (optional)", key="images_prefix")],
         [sg.Button('OK', key="OK"), sg.Button("Cancel")]
     ]
 
