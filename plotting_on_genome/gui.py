@@ -7,19 +7,27 @@ from .main import run_pipeline
 
 def main():
     # All the stuff inside your window.
-    names = [[sg.Text("Search term")], [sg.Text("Email")]]
+    names = [
+        [sg.Text("Search term", pad=(5, 7))],
+        [sg.Text("Email", pad=(5, 7))],
+        [sg.Text("Sequences file", pad=(5, 10))],
+        [sg.Text("Output folder")],
+    ]
 
-    inputs = [[sg.InputText(key="search_term")], [sg.InputText(key="email")]]
+    inputs = [
+        [sg.InputText(key="search_term", pad=(5, 10))],
+        [sg.InputText(key="email")],
+        [sg.Input(), sg.FilesBrowse(key="seq_file")],
+        [sg.Input(), sg.FolderBrowse(key="output_prefix")],
+    ]
 
     layout = [
         [sg.Column(names), sg.Column(inputs)],
-        [sg.Text("Sequences file"), sg.Input(), sg.FilesBrowse(key="seq_file")],
-        [sg.Text("Output folder"), sg.Input(), sg.FolderBrowse(key="output_prefix")],
         [sg.Button("OK", key="OK"), sg.Button("Cancel")],
     ]
 
     # Create the Window
-    window = sg.Window("PlottingOnGenome", layout)
+    window = sg.Window("PlottingOnGenome", layout, element_padding=(5, 5))
     # Event Loop to process "events" and get the "vals" of the inputs
     while True:
         event, vals = window.read()
