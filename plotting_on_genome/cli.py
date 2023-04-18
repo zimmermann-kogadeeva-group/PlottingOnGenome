@@ -1,4 +1,3 @@
-
 import argparse
 from .main import run_pipeline
 
@@ -13,5 +12,10 @@ def main():
 
     args = parser.parse_args()
 
-    run_pipeline(args.seq_file, args.search_term, args.email, args.output_prefix, args.images_prefix)
-
+    run_pipeline(
+        args.seq_file,
+        args.search_term,
+        args.email,
+        args.output_prefix,
+        args.images_prefix,
+    )
