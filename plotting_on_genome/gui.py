@@ -35,12 +35,15 @@ def main():
         if event in (sg.WIN_CLOSED, "Cancel"):
             break
         if event == "OK":
-            run_pipeline(
-                vals["seq_file"],
-                vals["search_term"],
-                vals["email"],
-                vals["output_prefix"],
-            )
+            try:
+                run_pipeline(
+                    vals["seq_file"],
+                    vals["search_term"],
+                    vals["email"],
+                    vals["output_prefix"],
+                )
+            except Exception as e:
+                sg.Popup(e)
 
             break
     window.close()

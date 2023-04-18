@@ -1,8 +1,16 @@
 
-.DS_Store
 notes.md
+
+.DS_Store
+*~
 
 .venv/
 __pycache__/
 *.egg-info/
 output/
+
+dist/
+build/
+*.spec
+
+
