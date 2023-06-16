@@ -1,5 +1,7 @@
 import argparse
-from .main import run_pipeline
+import matplotlib.pyplot as plt
+
+from .main import Pipeline
 
 
 def main():
@@ -8,14 +10,18 @@ def main():
     parser.add_argument("search_term", help="search term for BLAST")
     parser.add_argument("email", help="Your email address - needed by BLAST")
     parser.add_argument("output_prefix", help="Output directory")
-    parser.add_argument("--images-prefix", help="(Optional) Folder for images")
 
     args = parser.parse_args()
 
-    run_pipeline(
+    pipeline = Pipeline(
         args.seq_file,
         args.search_term,
         args.email,
         args.output_prefix,
-        args.images_prefix,
     )
+    
+    for seq_id in pipeline.blast_results.keys():
+        pipeline.plot_all_hsp(seq_id, save_fmt="png")
+        plt.close()
+
+    pipeline.plot_all_db_seqs(save_fmt="png")
