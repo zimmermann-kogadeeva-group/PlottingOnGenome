@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 from copy import deepcopy
+from itertools import product
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+import re
 import subprocess
 
 from Bio import Entrez, SeqIO, SearchIO
@@ -34,8 +36,16 @@ def set_feature(feature, **kwargs):
     return new_feature
 
 
+def get_length(fwd, rev):
+    if fwd.hit_strand == +1:
+        return rev.hit_end - fwd.hit_start
+    else:
+        return fwd.hit_end - rev.hit_start
+
+
 def get_db(search_term, email, gbk_file=None, retmax=100):
     # TODO: maybe replace checking for existing file with caching in user's home
+    # Or make a cache in work_dir based on hashing search_term
     if gbk_file is not None and Path(gbk_file).exists():
         # Read in the file
         data_gb = SeqIO.to_dict(SeqIO.parse(gbk_file, "genbank"))
@@ -100,6 +110,32 @@ def run_blast(seq_file, db_file, blast_output):
     }
 
 
+class Insert(object):
+    def __init__(self, hsp1, hsp2=None, avg_insert_length=4000):
+        self.hsp1 = hsp1
+        self.hsp2 = hsp2
+        self.strand = self.hsp1.hit_strand
+        self.hit_id = self.hsp1.hit_id
+        self.query_id = self.hsp1.query_id
+
+        if hsp2 is not None:
+            if self.hsp1.hit_strand == 1:
+                self.start = self.hsp1.hit_start
+                self.end = self.hsp2.hit_end
+            else:
+                self.start = self.hsp2.hit_start
+                self.end = self.hsp1.hit_end
+        else:
+            self.start = self.hsp1.hit_start
+            self.end = self.hsp1.hit_start + avg_insert_length
+
+    def get_shifted(self, shift):
+        return self.start + shift, self.end + shift
+
+    def __len__(self):
+        return self.end - self.start
+
+
 class Pipeline(object):
     def __init__(
         self,
@@ -116,6 +152,8 @@ class Pipeline(object):
         self.seq_file = seq_file
         self.work_dir = Path(work_dir)
         self.search_term = search_term
+        self.__fwd_suf__ = fwd_suffix
+        self.__rev_suf__ = rev_suffix
         self.__strand_func__ = lambda seq_id: +1 if seq_id.endswith(fwd_suffix) else -1
 
         self._db_col = "#8DDEF7" if "db_col" not in kwargs else kwargs["db_col"]
@@ -137,15 +175,45 @@ class Pipeline(object):
                 k: v for k, v in self.blast_results.items() if len(v.hits) > 0
             }
 
-    def plot_hsp(self, seq_id, hsp_idx=0, buffer=4000, figsize=None, save_fmt=None):
+    def get_inserts(self, seq_id, insert_max_len=1e4, output="both"):
+        matched = []
+
+        fwds, revs = [], []
+        if seq_id + self.__fwd_suf__ in self.blast_results:
+            fwds = set(self.blast_results[seq_id + self.__fwd_suf__].hsps)
+        if seq_id + self.__rev_suf__ in self.blast_results:
+            revs = set(self.blast_results[seq_id + self.__rev_suf__].hsps)
+
+        unmatched = set(fwds).union(revs)
+
+        for fwd, rev in product(fwds, revs):
+            if (
+                fwd.hit_id == rev.hit_id
+                and fwd.hit_strand == -rev.hit_strand
+                and 0 < get_length(fwd, rev) < insert_max_len
+            ):
+                matched.append([fwd, rev])
+                unmatched -= {fwd, rev}
+
+        matched = [Insert(*x) for x in matched]
+        unmatched = [Insert(x) for x in unmatched]
+
+        if output == "matched":
+            return matched
+        elif output == "unmatched":
+            return unmatched
+        else:
+            return matched + unmatched
+
+    def plot_insert(
+        self,
+        insert,
+        buffer=4000,
+        figsize=None,
+        save_fmt=None,
+    ):
         # Default values for figure size
         figsize = figsize or (10, 8)
-
-        # Get the specified HSP object from dictionary of BLAST results
-        hsp = self.blast_results[seq_id].hsps[hsp_idx]
-
-        seq_mapped_start = hsp.hit_start - hsp.query_start
-        seq_mapped_end = hsp.hit_end + (len(self.seqs[hsp.query_id]) - hsp.query_end)
 
         # Create a new figure and axes object
         fig, axs = plt.subplots(2, 1, figsize=figsize)
@@ -153,18 +221,20 @@ class Pipeline(object):
         # Create a new graphic object for query sequence
         features = [
             GraphicFeature(
-                start=seq_mapped_start,
-                end=seq_mapped_end,
-                strand=self.__strand_func__(seq_id),
+                start=insert.start,
+                end=insert.end,
+                strand=insert.strand,
                 color=self._query_col,
-                label=hsp.query_id,
+                label=re.sub(
+                    f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", insert.query_id
+                ),
             )
         ]
 
         # Plot the query sequence on the upper axes
         record_seq = GraphicRecord(
-            first_index=seq_mapped_start - buffer,
-            sequence_length=seq_mapped_end - seq_mapped_start + 2 * buffer,
+            first_index=insert.start - buffer,
+            sequence_length=insert.end - insert.start + 2 * buffer,
             features=features,
         )
         _ = record_seq.plot(ax=axs[0])
@@ -174,32 +244,47 @@ class Pipeline(object):
         conv = BiopythonTranslator()
         conv.default_feature_color = self._db_col
         features = [
-            conv.translate_feature(shift_feature(x, seq_mapped_start - buffer))
-            for x in self.db[hsp.hit_id][
-                seq_mapped_start - buffer : seq_mapped_end + buffer
+            conv.translate_feature(shift_feature(x, insert.start - buffer))
+            for x in self.db[insert.hit_id][
+                insert.start - buffer : insert.end + buffer
             ].features
         ]
 
         # Plot the genes and CDSes in the region of the mapped sequence
         record_hits = GraphicRecord(
-            first_index=seq_mapped_start - buffer,
-            sequence_length=seq_mapped_end - seq_mapped_start + 2 * buffer,
+            first_index=insert.start - buffer,
+            sequence_length=insert.end - insert.start + 2 * buffer,
             features=features,
         )
         _ = record_hits.plot(ax=axs[1])
 
         if save_fmt is not None:
-            fig.savefig(self.work_dir / f"{seq_id}_hit{hsp_idx}.{save_fmt}")
+            fig.savefig(self.work_dir / f"{seq_id}_hit{insert_idx}.{save_fmt}")
 
         return fig
 
-    def plot_all_hsp(self, seq_id, buffer=4000, figsize=None, save_fmt=None):
+    def plot_all_inserts(
+        self,
+        seq_id,
+        output="both",
+        insert_max_len=10000,
+        buffer=4000,
+        figsize=None,
+        save_fmt=None,
+    ):
         return [
-            self.plot_hsp(seq_id, i, buffer, figsize, save_fmt)
-            for i, x in enumerate(self.blast_results[seq_id].hsps)
+            self.plot_insert(x, buffer, figsize, save_fmt)
+            for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
         ]
 
-    def plot_all_db_seqs(self, labels=True, figsize=None, save_fmt=None):
+    def plot_all_db_seqs(
+        self,
+        output="both",
+        insert_max_len=10000,
+        labels=True,
+        figsize=None,
+        save_fmt=None,
+    ):
         figsize = figsize or (10, 30)
         fig, ax = plt.subplots(figsize=figsize)
         # Get just the sequences for each NCBI record and order them by size in
@@ -218,7 +303,8 @@ class Pipeline(object):
         # Get the shifts needed to plot all the NCBI records in a continuous line
         shifts = np.cumsum([0] + [len(x) for x in db_seqs])
 
-        # Get IDs of NCBI records that were mapped to
+        # Get IDs of NCBI records that were mapped to. Used to check where to
+        # add labels if option is set.
         mapped_ids = set([x.id for l in self.blast_results.values() for x in l.hits])
 
         # Make plots of NCBI records and label only the ones that were mapped
@@ -245,25 +331,27 @@ class Pipeline(object):
         # Get IDs of NCBI records in the order as in the figure. Used to make
         # sure locations are shifted correctly.
         ids = [x.id for x in db_seqs]
+        seq_ids = {
+            re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", x)
+            for x in self.blast_results.keys()
+        }
 
         # Add plots of the query sequences plotted on top of the plots of NCBI records
         hits = [
             GraphicFeature(
-                start=x.hit_start - x.query_start + shifts[ids.index(x.hit_id)],
-                end=x.hit_end
-                + (len(self.seqs[x.query_id]) - x.query_end)
-                + shifts[ids.index(x.hit_id)],
-                strand=self.__strand_func__(x.query_id),
+                *insert.get_shifted(shifts[ids.index(insert.hit_id)]),
+                strand=insert.strand,
                 color=self._query_col,
-                label=x.query_id if labels else None,
+                label=None,
             )
-            for l in self.blast_results.values()
-            for x in l.hsps
+            for seq_id in seq_ids
+            for insert in self.get_inserts(seq_id, insert_max_len, output)
         ]
 
         rec = CircularGraphicRecord(
             sequence_length=shifts[-1], features=features + hits
         )
+
         _ = rec.plot(ax, annotate_inline=False)
 
         if save_fmt is not None:
