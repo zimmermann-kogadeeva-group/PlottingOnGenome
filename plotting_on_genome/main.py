@@ -164,7 +164,7 @@ class Pipeline(object):
 
         self.seq_ids = {
             re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", x)
-            for x in self.blast_results.keys()
+            for x in self.seqs.keys()
         }
 
         self.db = get_db(search_term, email, self.work_dir / "db.gbk", retmax)
@@ -214,7 +214,7 @@ class Pipeline(object):
         insert,
         buffer=4000,
         figsize=None,
-        save_fmt=None,
+        save_suffix=None,
     ):
         # Default values for figure size and create the figure
         figsize = figsize or (10, 8)
@@ -261,8 +261,8 @@ class Pipeline(object):
         )
         _ = record_hits.plot(ax=axs[1])
 
-        if save_fmt is not None:
-            fig.savefig(self.work_dir / f"{seq_id}_hit{insert_idx}.{save_fmt}")
+        if save_suffix is not None:
+            fig.savefig(self.work_dir / f"{seq_id}{save_suffix}")
 
         return fig
 
@@ -275,10 +275,16 @@ class Pipeline(object):
         figsize=None,
         save_fmt=None,
     ):
-        return [
-            self.plot_insert(x, buffer, figsize, save_fmt)
-            for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
-        ]
+        if save_fmt is not None:
+            return [
+                self.plot_insert(x, buffer, figsize, f"_hit{i}.{save_fmt}")
+                for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
+            ]
+        else: 
+            return [
+                self.plot_insert(x, buffer, figsize)
+                for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
+            ]
 
     def plot_all_db_seqs(
         self,
