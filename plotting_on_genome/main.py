@@ -154,7 +154,6 @@ class Pipeline(object):
         self.search_term = search_term
         self.__fwd_suf__ = fwd_suffix
         self.__rev_suf__ = rev_suffix
-        self.__strand_func__ = lambda seq_id: +1 if seq_id.endswith(fwd_suffix) else -1
 
         self._db_col = "#8DDEF7" if "db_col" not in kwargs else kwargs["db_col"]
         self._query_col = (
@@ -162,6 +161,11 @@ class Pipeline(object):
         )
 
         self.seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
+
+        self.seq_ids = {
+            re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", x)
+            for x in self.blast_results.keys()
+        }
 
         self.db = get_db(search_term, email, self.work_dir / "db.gbk", retmax)
 
@@ -212,11 +216,12 @@ class Pipeline(object):
         figsize=None,
         save_fmt=None,
     ):
-        # Default values for figure size
+        # Default values for figure size and create the figure
         figsize = figsize or (10, 8)
-
-        # Create a new figure and axes object
         fig, axs = plt.subplots(2, 1, figsize=figsize)
+
+        # Get the sequence id
+        seq_id = re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", insert.query_id)
 
         # Create a new graphic object for query sequence
         features = [
@@ -225,9 +230,7 @@ class Pipeline(object):
                 end=insert.end,
                 strand=insert.strand,
                 color=self._query_col,
-                label=re.sub(
-                    f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", insert.query_id
-                ),
+                label=seq_id,
             )
         ]
 

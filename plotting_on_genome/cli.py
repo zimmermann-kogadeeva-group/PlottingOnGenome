@@ -10,6 +10,11 @@ def main():
     parser.add_argument("search_term", help="search term for BLAST")
     parser.add_argument("email", help="Your email address - needed by BLAST")
     parser.add_argument("output_prefix", help="Output directory")
+    parser.add_argument("--fwd_suffix", help="Suffix for forward seq.")
+    parser.add_argument("--rev_suffix", help="Suffix for reverse seq.")
+    parser.add_argument(
+        "--output", help="matched, unmatched or both inserts", default="both"
+    )
 
     args = parser.parse_args()
 
@@ -19,9 +24,9 @@ def main():
         args.email,
         args.output_prefix,
     )
-    
-    for seq_id in pipeline.blast_results.keys():
-        pipeline.plot_all_hsp(seq_id, save_fmt="png")
+
+    for seq_id in pipeline.seq_ids:
+        pipeline.plot_all_inserts(seq_id, args.output, save_fmt="png")
         plt.close()
 
-    pipeline.plot_all_db_seqs(save_fmt="png")
+    pipeline.plot_all_db_seqs(args.output, save_fmt="png")
