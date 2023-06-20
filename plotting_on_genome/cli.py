@@ -26,7 +26,9 @@ def main():
     )
 
     for seq_id in pipeline.seq_ids:
-        pipeline.plot_all_inserts(seq_id, args.output, save_fmt="png")
-        plt.close()
+        for i, fig in enumerate(pipeline.plot_all_inserts(seq_id, args.output)):
+            fig.savefig(pipeline.work_dir / f"{seq_id}_hit{i}.png")
+            plt.close()
 
-    pipeline.plot_all_db_seqs(args.output, save_fmt="png")
+    fig = pipeline.plot_all_db_seqs(args.output)
+    fig.savefig(pipeline.work_dir / "genome_plot.png")

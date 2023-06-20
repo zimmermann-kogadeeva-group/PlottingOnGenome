@@ -214,7 +214,6 @@ class Pipeline(object):
         insert,
         buffer=4000,
         figsize=None,
-        save_suffix=None,
     ):
         # Default values for figure size and create the figure
         figsize = figsize or (10, 8)
@@ -261,9 +260,6 @@ class Pipeline(object):
         )
         _ = record_hits.plot(ax=axs[1])
 
-        if save_suffix is not None:
-            fig.savefig(self.work_dir / f"{seq_id}{save_suffix}")
-
         return fig
 
     def plot_all_inserts(
@@ -272,19 +268,12 @@ class Pipeline(object):
         output="both",
         insert_max_len=10000,
         buffer=4000,
-        figsize=None,
-        save_fmt=None,
+        figsize=None
     ):
-        if save_fmt is not None:
-            return [
-                self.plot_insert(x, buffer, figsize, f"_hit{i}.{save_fmt}")
-                for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
-            ]
-        else: 
-            return [
-                self.plot_insert(x, buffer, figsize)
-                for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
-            ]
+        return [
+            self.plot_insert(x, buffer, figsize)
+            for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
+        ]
 
     def plot_all_db_seqs(
         self,
@@ -292,7 +281,6 @@ class Pipeline(object):
         insert_max_len=10000,
         labels=True,
         figsize=None,
-        save_fmt=None,
     ):
         figsize = figsize or (10, 30)
         fig, ax = plt.subplots(figsize=figsize)
@@ -362,8 +350,5 @@ class Pipeline(object):
         )
 
         _ = rec.plot(ax, annotate_inline=False)
-
-        if save_fmt is not None:
-            fig.savefig(self.work_dir / f"genome_plot.{save_fmt}")
 
         return fig
