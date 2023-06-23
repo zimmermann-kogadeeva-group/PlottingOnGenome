@@ -213,11 +213,14 @@ class Pipeline(object):
         self,
         insert,
         buffer=4000,
-        figsize=None,
+        figsize=None, 
+        axs=None
     ):
         # Default values for figure size and create the figure
-        figsize = figsize or (10, 8)
-        fig, axs = plt.subplots(2, 1, figsize=figsize)
+        if axs is None:
+            figsize = figsize or (10, 8)
+            fig, axs = plt.subplots(2, 1, figsize=figsize)
+        assert len(axs) == 2
 
         # Get the sequence id
         seq_id = re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", insert.query_id)
@@ -260,7 +263,7 @@ class Pipeline(object):
         )
         _ = record_hits.plot(ax=axs[1])
 
-        return fig
+        return axs
 
     def plot_all_inserts(
         self,
@@ -270,6 +273,7 @@ class Pipeline(object):
         buffer=4000,
         figsize=None
     ):
+        # TODO: fix this function / check whether it works
         return [
             self.plot_insert(x, buffer, figsize)
             for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
@@ -281,9 +285,12 @@ class Pipeline(object):
         insert_max_len=10000,
         labels=True,
         figsize=None,
+        ax=None
     ):
-        figsize = figsize or (10, 30)
-        fig, ax = plt.subplots(figsize=figsize)
+        if ax is None:
+            figsize = figsize or (10, 30)
+            fig, ax = plt.subplots(figsize=figsize)
+
         # Get just the sequences for each NCBI record and order them by size in
         # descending order. 'x.features[0]' to get the whole sequence for a
         # given NCBI record. Other features are specific genes, cfs, etc.
@@ -351,4 +358,4 @@ class Pipeline(object):
 
         _ = rec.plot(ax, annotate_inline=False)
 
-        return fig
+        return ax
