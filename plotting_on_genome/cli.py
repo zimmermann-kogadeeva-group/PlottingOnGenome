@@ -10,8 +10,12 @@ def main():
     parser.add_argument("search_term", help="search term for BLAST")
     parser.add_argument("email", help="Your email address - needed by BLAST")
     parser.add_argument("output_prefix", help="Output directory")
-    parser.add_argument("--fwd_suffix", default="_F", help="Suffix for forward seq. default='_F'")
-    parser.add_argument("--rev_suffix", default="_R", help="Suffix for reverse seq. default='_R'")
+    parser.add_argument(
+        "--fwd_suffix", default="_F", help="Suffix for forward seq. default='_F'"
+    )
+    parser.add_argument(
+        "--rev_suffix", default="_R", help="Suffix for reverse seq. default='_R'"
+    )
     parser.add_argument(
         "--output", help="matched, unmatched or both inserts", default="both"
     )
@@ -24,7 +28,7 @@ def main():
         args.email,
         args.output_prefix,
         fwd_suffix=args.fwd_suffix,
-        rev_suffix=args.rev_suffix
+        rev_suffix=args.rev_suffix,
     )
 
     for seq_id in pipeline.seq_ids:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from copy import deepcopy
+import hashlib
 from itertools import product
 import matplotlib.pyplot as plt
 import numpy as np
@@ -43,14 +44,17 @@ def get_length(fwd, rev):
         return fwd.hit_end - rev.hit_start
 
 
-def get_db(search_term, email, gbk_file=None, retmax=100):
-    # TODO: maybe replace checking for existing file with caching in user's home
-    # Or make a cache in work_dir based on hashing search_term
+def get_db(search_term, email, retmax=100, out_prefix=None):
+    gbk_file = None
+    if out_prefix is not None:
+        gbk_file = Path(out_prefix).with_suffix(".gbk")
+        fasta_file = Path(out_prefix).with_suffix(".fasta")
+
     if gbk_file is not None and Path(gbk_file).exists():
         # Read in the file
-        data_gb = SeqIO.to_dict(SeqIO.parse(gbk_file, "genbank"))
+        return SeqIO.to_dict(SeqIO.parse(gbk_file, "genbank"))
 
-    else:
+    else:  # Otherwise retrieve the records from NCBI
         # Set the email address for NCBI queries
         Entrez.email = email
 
@@ -70,15 +74,13 @@ def get_db(search_term, email, gbk_file=None, retmax=100):
 
         # Save the file if it doesn't exist
         if gbk_file is not None and not Path(gbk_file).exists():
-            path = Path(gbk_file)
-
             # Save in genbank format (stores more information about the NCBI records)
-            SeqIO.write(data_gb.values(), path, "genbank")
+            SeqIO.write(data_gb.values(), gbk_file, "genbank")
 
             # Save in fasta format (only acceptable format for makeblastdb)
             SeqIO.write(
                 [x for x in data_gb.values() if x.seq.defined],
-                path.with_suffix(".fasta"),
+                fasta_file,
                 "fasta",
             )
 
@@ -162,16 +164,21 @@ class Pipeline(object):
 
         self.seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
 
-        self.seq_ids = {
-            re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", x)
-            for x in self.seqs.keys()
-        }
+        self.seq_ids = list(
+            {
+                re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", x)
+                for x in self.seqs.keys()
+            }
+        )
 
-        self.db = get_db(search_term, email, self.work_dir / "db.gbk", retmax)
+        # Hash the search term to use as filename in cache dir
+        search_hashed = hashlib.sha1(search_term.encode()).hexdigest()
+        db_path = self.work_dir / f"db_{search_hashed}"
+        self.db = get_db(search_term, email, retmax, db_path)
 
-        # Use xml format to save blast output
+        # Run BLAST and use xml format to save blast output
         self.blast_results = run_blast(
-            seq_file, self.work_dir / "db.fasta", self.work_dir / "blast_output.xml"
+            seq_file, db_path.with_suffix(".fasta"), self.work_dir / "blast_output.xml"
         )
 
         if blast_clean:
@@ -209,13 +216,7 @@ class Pipeline(object):
         else:
             return matched + unmatched
 
-    def plot_insert(
-        self,
-        insert,
-        buffer=4000,
-        figsize=None, 
-        axs=None
-    ):
+    def plot_insert(self, insert, buffer=4000, figsize=None, axs=None):
         # Default values for figure size and create the figure
         if axs is None:
             figsize = figsize or (10, 8)
@@ -266,26 +267,15 @@ class Pipeline(object):
         return axs
 
     def plot_all_inserts(
-        self,
-        seq_id,
-        output="both",
-        insert_max_len=10000,
-        buffer=4000,
-        figsize=None
+        self, seq_id, output="both", insert_max_len=10000, buffer=4000, figsize=None
     ):
-        # TODO: fix this function / check whether it works
         return [
             self.plot_insert(x, buffer, figsize)
             for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
         ]
 
     def plot_all_db_seqs(
-        self,
-        output="both",
-        insert_max_len=10000,
-        labels=True,
-        figsize=None,
-        ax=None
+        self, output="both", insert_max_len=10000, labels=True, figsize=None, ax=None
     ):
         if ax is None:
             figsize = figsize or (10, 30)
