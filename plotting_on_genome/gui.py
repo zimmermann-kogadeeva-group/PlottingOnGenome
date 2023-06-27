@@ -5,6 +5,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from pathlib import Path
 import PySimpleGUI as sg
+import threading
 
 from .main import Pipeline
 
@@ -122,7 +123,10 @@ def main():
             # TODO: popup to let the user know that the package is running
             save_settings(user_input)
             try:
-                save_figures(user_input)
+                thread = threading.Thread(target=save_figures, args=[user_input])
+                thread.start()
+                sg.popup_non_blocking("Please wait ...")
+                thread.join()
             except Exception as e:
                 sg.Popup(e)
             break
