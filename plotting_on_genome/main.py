@@ -131,9 +131,6 @@ class Insert(object):
             self.start = self.hsp1.hit_start
             self.end = self.hsp1.hit_start + avg_insert_length
 
-    def get_shifted(self, shift):
-        return self.start + shift, self.end + shift
-
     def __len__(self):
         return self.end - self.start
 
@@ -229,7 +226,7 @@ class Pipeline(object):
         # Create a new graphic object for query sequence
         features = [
             GraphicFeature(
-                start=insert.start,
+                start=insert.start + 1,  # +1 due to python's 0-indexing
                 end=insert.end,
                 strand=insert.strand,
                 color=self._query_col,
@@ -239,7 +236,7 @@ class Pipeline(object):
 
         # Plot the query sequence on the upper axes
         record_seq = GraphicRecord(
-            first_index=insert.start - buffer,
+            first_index=insert.start - buffer + 1,  # +1 due to python's 0-indexing
             sequence_length=insert.end - insert.start + 2 * buffer,
             features=features,
         )
@@ -258,7 +255,7 @@ class Pipeline(object):
 
         # Plot the genes and CDSes in the region of the mapped sequence
         record_hits = GraphicRecord(
-            first_index=insert.start - buffer,
+            first_index=insert.start - buffer + 1,  # +1 due to python's 0-indexing
             sequence_length=insert.end - insert.start + 2 * buffer,
             features=features,
         )
@@ -306,7 +303,7 @@ class Pipeline(object):
         # hence we are just using GraphicFeature class
         features = [
             GraphicFeature(
-                start=x.location.start + shifts[i],
+                start=x.location.start + shifts[i] + 1,  # +1 due to python's 0-indexing
                 end=x.location.end + shifts[i],
                 strand=x.strand,
                 label=x.id if labels else None,
@@ -314,7 +311,7 @@ class Pipeline(object):
             )
             if x.id in mapped_ids
             else GraphicFeature(
-                start=x.location.start + shifts[i],
+                start=x.location.start + shifts[i] + 1,  # +1 due to python's 0-indexing
                 end=x.location.end + shifts[i],
                 strand=x.strand,
                 color=self._db_col,
@@ -333,7 +330,8 @@ class Pipeline(object):
         # Add plots of the query sequences plotted on top of the plots of NCBI records
         hits = [
             GraphicFeature(
-                *insert.get_shifted(shifts[ids.index(insert.hit_id)]),
+                start=insert.start + shifts[ids.index(insert.hit_id)] + 1,
+                end=insert.end + shifts[ids.index(insert.hit_id)],
                 strand=insert.strand,
                 color=self._query_col,
                 label=None,
