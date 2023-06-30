@@ -87,6 +87,7 @@ def get_layout():
 
 
 def save_figures(user_input):
+    # Create a new Pipeline object
     pipeline = Pipeline(
         user_input["seq_file"],
         user_input["search_term"],
@@ -96,6 +97,7 @@ def save_figures(user_input):
         rev_suffix=user_input["rev_suffix"],
     )
 
+    # Create linear plots of inserts with annotations
     for seq_id in pipeline.seq_ids:
         for i, insert in enumerate(pipeline.get_inserts(seq_id)):
             fig, axs = plt.subplots(1, 2, figsize=(10, 8))
@@ -103,6 +105,8 @@ def save_figures(user_input):
             fig.savefig(pipeline.work_dir / f"{seq_id}_hit{i}.png")
             plt.close()
 
+    # Create a plot of genome / all contigs as circular plot with inserts
+    # layered on top
     fig, ax = plt.subplots(figsize=(10, 30))
     pipeline.plot_all_db_seqs(ax=ax)
     fig.savefig(pipeline.work_dir / "genome_plot.png")
@@ -120,7 +124,6 @@ def main():
             break
         if event == "OK":
             # Save the settings for next use
-            # TODO: popup to let the user know that the package is running
             save_settings(user_input)
             try:
                 thread = threading.Thread(target=save_figures, args=[user_input])

@@ -5,6 +5,7 @@ from .main import Pipeline
 
 
 def main():
+    # Create the CLI using argparse
     parser = argparse.ArgumentParser(description="Generating plots")
     parser.add_argument("seq_file", help="file with the sequences")
     parser.add_argument("search_term", help="search term for BLAST")
@@ -20,8 +21,10 @@ def main():
         "--output", help="matched, unmatched or both inserts", default="both"
     )
 
+    # Get all the command line arguments
     args = parser.parse_args()
 
+    # Create the Pipeline object
     pipeline = Pipeline(
         args.seq_file,
         args.search_term,
@@ -31,6 +34,7 @@ def main():
         rev_suffix=args.rev_suffix,
     )
 
+    # Create linear plots of inserts with annotations
     for seq_id in pipeline.seq_ids:
         for i, insert in enumerate(pipeline.get_inserts(seq_id)):
             fig, axs = plt.subplots(1, 2, figsize=(10, 8))
@@ -38,6 +42,8 @@ def main():
             fig.savefig(pipeline.work_dir / f"{seq_id}_hit{i}.png")
             plt.close()
 
+    # Create a plot of genome / all contigs as circular plot with inserts
+    # layered on top
     fig, ax = plt.subplots(figsize=(10, 30))
     pipeline.plot_all_db_seqs(ax=ax)
     fig.savefig(pipeline.work_dir / "genome_plot.png")

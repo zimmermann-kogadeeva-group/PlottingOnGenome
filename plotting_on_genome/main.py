@@ -19,17 +19,20 @@ from dna_features_viewer import (
 
 
 def correct_hit_id(x):
+    """Helper function to get rid red| or emb| added by BLAST to contig ID"""
     x.id = x.id.split("|")[1]
     return x
 
 
 def shift_feature(feature, shift=0):
+    """Helper function to shift a Biopython feature without changing the original"""
     new_feature = deepcopy(feature)
     new_feature.location = feature.location + shift
     return new_feature
 
 
 def set_feature(feature, **kwargs):
+    """Helper function to set an attribute in Biopython feature"""
     new_feature = deepcopy(feature)
     for k, v in kwargs.items():
         if hasattr(new_feature, k):
@@ -38,6 +41,8 @@ def set_feature(feature, **kwargs):
 
 
 def get_length(fwd, rev):
+    """Helper function to calculate thee length of a potential insert before
+    creating instantiating Insert class"""
     if fwd.hit_strand == +1:
         return rev.hit_end - fwd.hit_start
     else:
@@ -54,7 +59,8 @@ def get_db(search_term, email, retmax=100, out_prefix=None):
         # Read in the file
         return SeqIO.to_dict(SeqIO.parse(gbk_file, "genbank"))
 
-    else:  # Otherwise retrieve the records from NCBI
+    # Otherwise retrieve the records from NCBI
+    else:  
         # Set the email address for NCBI queries
         Entrez.email = email
 
@@ -106,6 +112,8 @@ def run_blast(seq_file, db_file, blast_output):
         stderr=subprocess.PIPE,
     )
 
+    # Return a dictionary correcting the hit IDs which get an unnecessary
+    # prefix from BLAST
     return {
         x.id: x.hit_map(correct_hit_id)
         for x in SearchIO.parse(blast_output, "blast-xml")
@@ -114,6 +122,7 @@ def run_blast(seq_file, db_file, blast_output):
 
 class Insert(object):
     def __init__(self, hsp1, hsp2=None, avg_insert_length=4000):
+        # TODO: maybe switch to using a list of hsps instead of hsp1 and hsp2
         self.hsp1 = hsp1
         self.hsp2 = hsp2
         self.strand = self.hsp1.hit_strand
