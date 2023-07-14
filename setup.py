@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="plotting_on_genome",
-    version="0.0.5",
+    version="0.0.6",
     author="Bartosz Bartmanski",
     author_email="bartosz.bartmanski@embl.de",
     description="Package for making genome related plots",

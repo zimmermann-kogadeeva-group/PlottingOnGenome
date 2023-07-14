@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 from .main import Pipeline
 
 
-def main():
+def get_args():
     # Create the CLI using argparse
+    # TODO: maybe switch from argparse to click
     parser = argparse.ArgumentParser(description="Generating plots")
     parser.add_argument("seq_file", help="file with the sequences")
     parser.add_argument("search_term", help="search term for BLAST")
@@ -20,9 +21,18 @@ def main():
     parser.add_argument(
         "--output", help="matched, unmatched or both inserts", default="both"
     )
+    parser.add_argument(
+        "--filter",
+        default=0.5,
+        help="Threshold value for filtering out blast results with low coverage",
+    )
 
     # Get all the command line arguments
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def main():
+    args = get_args()
 
     # Create the Pipeline object
     pipeline = Pipeline(
@@ -36,8 +46,10 @@ def main():
 
     # Create linear plots of inserts with annotations
     for seq_id in pipeline.seq_ids:
-        for i, insert in enumerate(pipeline.get_inserts(seq_id)):
-            fig, axs = plt.subplots(1, 2, figsize=(10, 8))
+        for i, insert in enumerate(
+            pipeline.get_inserts(seq_id, filter_threshold=args.filter)
+        ):
+            fig, axs = plt.subplots(2, 1, figsize=(10, 8))
             pipeline.plot_insert(insert, axs=axs)
             fig.savefig(pipeline.work_dir / f"{seq_id}_hit{i}.png")
             plt.close()
@@ -45,7 +57,7 @@ def main():
     # Create a plot of genome / all contigs as circular plot with inserts
     # layered on top
     fig, ax = plt.subplots(figsize=(10, 30))
-    pipeline.plot_all_db_seqs(ax=ax)
+    pipeline.plot_all_db_seqs(filter_threshold=args.filter, ax=ax)
     fig.savefig(pipeline.work_dir / "genome_plot.png")
 
 

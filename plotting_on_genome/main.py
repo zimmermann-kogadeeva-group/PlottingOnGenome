@@ -60,7 +60,7 @@ def get_db(search_term, email, retmax=100, out_prefix=None):
         return SeqIO.to_dict(SeqIO.parse(gbk_file, "genbank"))
 
     # Otherwise retrieve the records from NCBI
-    else:  
+    else:
         # Set the email address for NCBI queries
         Entrez.email = email
 
@@ -163,6 +163,8 @@ class Pipeline(object):
         self.__fwd_suf__ = fwd_suffix
         self.__rev_suf__ = rev_suffix
 
+        self.work_dir.mkdir(exist_ok=True)
+
         self._db_col = "#8DDEF7" if "db_col" not in kwargs else kwargs["db_col"]
         self._query_col = (
             "#CFFCCC" if "query_col" not in kwargs else kwargs["query_col"]
@@ -172,7 +174,7 @@ class Pipeline(object):
 
         self.seq_ids = list(
             {
-                re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", x)
+                re.sub(f"{self.__fwd_suf__}$|{self.__rev_suf__}$", "", x)
                 for x in self.seqs.keys()
             }
         )
@@ -192,14 +194,28 @@ class Pipeline(object):
                 k: v for k, v in self.blast_results.items() if len(v.hits) > 0
             }
 
-    def get_inserts(self, seq_id, insert_max_len=1e4, output="both"):
+    def get_inserts(
+        self, seq_id, output="both", filter_threshold=None, insert_max_len=10000
+    ):
         matched = []
 
         fwds, revs = [], []
         if seq_id + self.__fwd_suf__ in self.blast_results:
-            fwds = set(self.blast_results[seq_id + self.__fwd_suf__].hsps)
+            fwds = self.blast_results[seq_id + self.__fwd_suf__].hsps
         if seq_id + self.__rev_suf__ in self.blast_results:
-            revs = set(self.blast_results[seq_id + self.__rev_suf__].hsps)
+            revs = self.blast_results[seq_id + self.__rev_suf__].hsps
+
+        if filter_threshold is not None:
+            fwds = [
+                x
+                for x in fwds
+                if len(x.query.seq) / len(self.seqs[x.query_id]) > filter_threshold
+            ]
+            revs = [
+                x
+                for x in revs
+                if len(x.query.seq) / len(self.seqs[x.query_id]) > filter_threshold
+            ]
 
         unmatched = set(fwds).union(revs)
 
@@ -273,15 +289,34 @@ class Pipeline(object):
         return axs
 
     def plot_all_inserts(
-        self, seq_id, output="both", insert_max_len=10000, buffer=4000, figsize=None
+        self,
+        seq_id,
+        output="both",
+        filter_threshold=None,
+        insert_max_len=10000,
+        buffer=4000,
+        figsize=None,
     ):
         return [
             self.plot_insert(x, buffer, figsize)
-            for i, x in enumerate(self.get_inserts(seq_id, insert_max_len, output))
+            for i, x in enumerate(
+                self.get_inserts(
+                    seq_id,
+                    output=output,
+                    filter_threshold=filter_threshold,
+                    insert_max_len=insert_max_len,
+                )
+            )
         ]
 
     def plot_all_db_seqs(
-        self, output="both", insert_max_len=10000, labels=True, figsize=None, ax=None
+        self,
+        output="both",
+        filter_threshold=None,
+        insert_max_len=10000,
+        labels=True,
+        figsize=None,
+        ax=None,
     ):
         if ax is None:
             figsize = figsize or (10, 30)
@@ -346,7 +381,12 @@ class Pipeline(object):
                 label=None,
             )
             for seq_id in seq_ids
-            for insert in self.get_inserts(seq_id, insert_max_len, output)
+            for insert in self.get_inserts(
+                seq_id,
+                output=output,
+                filter_threshold=filter_threshold,
+                insert_max_len=insert_max_len,
+            )
         ]
 
         rec = CircularGraphicRecord(

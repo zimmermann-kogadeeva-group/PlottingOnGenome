@@ -16,14 +16,7 @@ settings_cache = Path.home() / ".plotting_on_genome_settings.json"
 
 def load_settings():
     # Default settings in case of first use of the package
-    settings = {
-        "email": None,
-        "search_term": None,
-        "fwd_suffix": "_F",
-        "rev_suffix": "_R",
-        "seq_file": None,
-        "output_prefix": None,
-    }
+    settings = {}
     if settings_cache.exists():
         with open(settings_cache, "r") as fh:
             settings = json.load(fh)
@@ -51,30 +44,44 @@ def get_layout():
         [sg.Text("Email", pad=(5, 7))],
         [sg.Text("Forward suffix", pad=(5, 7))],
         [sg.Text("Reverse suffix", pad=(5, 7))],
+        [sg.Text("Filter threshold", pad=(5, 7))],
         [sg.Text("Sequences file", pad=(5, 10))],
         [sg.Text("Output folder")],
     ]
 
+    # TODO: add filter_threshold to the input after determining a good default value
     inputs = [
         [
             sg.InputText(
-                key="search_term", default_text=settings["search_term"], pad=(5, 7)
+                key="search_term", default_text=settings.get("search_term"), pad=(5, 7)
             )
         ],
-        [sg.InputText(key="email", default_text=settings["email"], pad=(5, 7))],
+        [sg.InputText(key="email", default_text=settings.get("email"), pad=(5, 7))],
         [
             sg.InputText(
-                key="fwd_suffix", default_text=settings["fwd_suffix"], pad=(5, 7)
+                key="fwd_suffix",
+                default_text=settings.get("fwd_suffix", "_F"),
+                pad=(5, 7),
             )
         ],
         [
             sg.InputText(
-                key="rev_suffix", default_text=settings["rev_suffix"], pad=(5, 7)
+                key="rev_suffix",
+                default_text=settings.get("rev_suffix", "_R"),
+                pad=(5, 7),
             )
         ],
-        [sg.Input(default_text=settings["seq_file"]), sg.FilesBrowse(key="seq_file")],
         [
-            sg.Input(default_text=settings["output_prefix"]),
+            sg.InputText(
+                key="filter", default_text=settings.get("filter", 0.5), pad=(5, 7)
+            )
+        ],
+        [
+            sg.Input(default_text=settings.get("seq_file")),
+            sg.FilesBrowse(key="seq_file"),
+        ],
+        [
+            sg.Input(default_text=settings.get("output_prefix")),
             sg.FolderBrowse(key="output_prefix"),
         ],
     ]
@@ -99,8 +106,10 @@ def save_figures(user_input):
 
     # Create linear plots of inserts with annotations
     for seq_id in pipeline.seq_ids:
-        for i, insert in enumerate(pipeline.get_inserts(seq_id)):
-            fig, axs = plt.subplots(1, 2, figsize=(10, 8))
+        for i, insert in enumerate(
+            pipeline.get_inserts(seq_id, filter_threshold=user_input["filter"])
+        ):
+            fig, axs = plt.subplots(2, 1, figsize=(10, 8))
             pipeline.plot_insert(insert, axs=axs)
             fig.savefig(pipeline.work_dir / f"{seq_id}_hit{i}.png")
             plt.close()
@@ -108,7 +117,7 @@ def save_figures(user_input):
     # Create a plot of genome / all contigs as circular plot with inserts
     # layered on top
     fig, ax = plt.subplots(figsize=(10, 30))
-    pipeline.plot_all_db_seqs(ax=ax)
+    pipeline.plot_all_db_seqs(filter_threshold=user_input["filter"], ax=ax)
     fig.savefig(pipeline.work_dir / "genome_plot.png")
 
 
