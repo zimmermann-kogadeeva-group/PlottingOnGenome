@@ -27,7 +27,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     entry_points={
         'console_scripts': [
-            "pog = plotting_on_genome.__cli__:main",
+            "pog = plotting_on_genome.__main__:main",
             "pog-gui = plotting_on_genome.gui:main"
         ],
     }
