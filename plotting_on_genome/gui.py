@@ -132,8 +132,10 @@ def main():
         if event in (sg.WIN_CLOSED, "Cancel"):
             break
         if event == "OK":
+            user_input["filter"] = float(user_input.get("filter"))
             # Save the settings for next use
             save_settings(user_input)
+            # TODO: fix exception handling after introducing threading module
             try:
                 thread = threading.Thread(target=save_figures, args=[user_input])
                 thread.start()

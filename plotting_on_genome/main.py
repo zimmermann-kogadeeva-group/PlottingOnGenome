@@ -206,6 +206,7 @@ class Pipeline(object):
             revs = self.blast_results[seq_id + self.__rev_suf__].hsps
 
         if filter_threshold is not None:
+            assert 0 <= filter_threshold <= 1
             fwds = [
                 x
                 for x in fwds
