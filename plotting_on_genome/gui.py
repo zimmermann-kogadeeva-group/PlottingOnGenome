@@ -68,7 +68,6 @@ def get_layout():
         [sg.Text("Output folder")],
     ]
 
-    # TODO: add filter_threshold to the input after determining a good default value
     inputs = [
         [
             sg.InputText(
@@ -154,7 +153,6 @@ def main():
             user_input["filter"] = float(user_input.get("filter"))
             # Save the settings for next use
             save_settings(user_input)
-            # TODO: fix exception handling after introducing threading module
             try:
                 thread = PropagatingThread(target=save_figures, args=[user_input])
                 thread.start()
