@@ -125,7 +125,7 @@ def save_figures(user_input):
     # Create linear plots of inserts with annotations
     for seq_id in pipeline.seq_ids:
         for i, insert in enumerate(
-            pipeline.get_inserts(seq_id, filter_threshold=user_input["filter"])
+            pipeline.get_inserts(seq_id, output="matched", filter_threshold=user_input["filter"])
         ):
             fig, axs = plt.subplots(2, 1, figsize=(10, 8))
             pipeline.plot_insert(insert, axs=axs)
@@ -135,7 +135,7 @@ def save_figures(user_input):
     # Create a plot of genome / all contigs as circular plot with inserts
     # layered on top
     fig, ax = plt.subplots(figsize=(10, 30))
-    pipeline.plot_all_db_seqs(filter_threshold=user_input["filter"], ax=ax)
+    pipeline.plot_all_db_seqs(output="matched", filter_threshold=user_input["filter"], ax=ax)
     fig.savefig(pipeline.work_dir / "genome_plot.png")
 
 
