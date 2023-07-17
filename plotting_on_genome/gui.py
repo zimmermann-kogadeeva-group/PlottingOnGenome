@@ -5,13 +5,32 @@ import matplotlib
 import matplotlib.pyplot as plt
 from pathlib import Path
 import PySimpleGUI as sg
-import threading
+from threading import Thread
 
 from .main import Pipeline
 
 
 matplotlib.use("agg")
 settings_cache = Path.home() / ".plotting_on_genome_settings.json"
+
+
+class PropagatingThread(Thread):
+    def run(self):
+        self.exc = None
+        try:
+            if hasattr(self, '_Thread__target'):
+                # Thread uses name mangling prior to Python 3.
+                self.ret = self._Thread__target(*self._Thread__args, **self._Thread__kwargs)
+            else:
+                self.ret = self._target(*self._args, **self._kwargs)
+        except BaseException as e:
+            self.exc = e
+
+    def join(self, timeout=None):
+        super(PropagatingThread, self).join(timeout)
+        if self.exc:
+            raise self.exc
+        return self.ret
 
 
 def load_settings():
@@ -137,7 +156,7 @@ def main():
             save_settings(user_input)
             # TODO: fix exception handling after introducing threading module
             try:
-                thread = threading.Thread(target=save_figures, args=[user_input])
+                thread = PropagatingThread(target=save_figures, args=[user_input])
                 thread.start()
                 sg.popup_non_blocking("Please wait ...")
                 thread.join()
