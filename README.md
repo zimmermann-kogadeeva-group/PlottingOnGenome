@@ -10,7 +10,7 @@ BLAST
 ## Download 
 
 Click
-[here](https://oc.embl.de/remote.php/webdav/Exe/plotting_on_genome_0.0.7.exe)
+[here](https://oc.embl.de/index.php/s/O7aLxLTiO7gal0p/download)
 to download the Windows executable.
 
 ## Install
