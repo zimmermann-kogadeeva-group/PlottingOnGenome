@@ -1,11 +1,19 @@
 
 # PlottingOnGenome
 
-## Install
+Package to plot inserts alongside the genome or contigs.
 
 BLAST is required. You can follow the instructions to download and install
 BLAST
 [here](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html). 
+
+## Download 
+
+Click
+[here](https://oc.embl.de/remote.php/webdav/Exe/plotting_on_genome_0.0.7.exe)
+to download the Windows executable.
+
+## Install
 
 Install with pip:
 ```
