@@ -9,6 +9,7 @@ ACTIVATE = source .venv/bin/activate
 install_packages: .venv requirements.txt
 	${ACTIVATE} && pip install -r requirements.txt
 
+.PHONY: requirements.txt
 requirements.txt:
 	${ACTIVATE} && pip freeze > $@
 

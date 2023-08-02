@@ -3,10 +3,13 @@
 from copy import deepcopy
 import hashlib
 from itertools import product
+import json
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from pathlib import Path
 import re
+import seaborn as sns
 import subprocess
 
 from Bio import Entrez, SeqIO, SearchIO
@@ -151,7 +154,7 @@ class Pipeline(object):
         search_term,
         email,
         work_dir,
-        retmax=100,
+        retmax=200,
         fwd_suffix="_F",
         rev_suffix="_R",
         blast_clean=True,
@@ -165,10 +168,25 @@ class Pipeline(object):
 
         self.work_dir.mkdir(exist_ok=True)
 
-        self._db_col = "#8DDEF7" if "db_col" not in kwargs else kwargs["db_col"]
+        self._db_col = "#8DDEF7" if "db_color" not in kwargs else kwargs["db_color"]
         self._query_col = (
-            "#CFFCCC" if "query_col" not in kwargs else kwargs["query_col"]
+            "#CFFCCC" if "query_color" not in kwargs else kwargs["query_color"]
         )
+
+        # Save the input parameters
+        with open(self.work_dir / "parameters.json", "w") as fh:
+            json.dump(
+                {
+                    "seq_file": self.seq_file,
+                    "search_term": self.search_term,
+                    "email": email,
+                    "work_dir": str(self.work_dir),
+                    "retmax": retmax,
+                    "fwd_suffix": self.__fwd_suf__,
+                    "rev_suffix": self.__rev_suf__,
+                },
+                fh,
+            )
 
         self.seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
 
@@ -321,7 +339,7 @@ class Pipeline(object):
         ax=None,
     ):
         if ax is None:
-            figsize = figsize or (10, 30)
+            figsize = figsize or (10, 20)
             fig, ax = plt.subplots(figsize=figsize)
 
         # Get just the sequences for each NCBI record and order them by size in
@@ -398,3 +416,62 @@ class Pipeline(object):
         _ = rec.plot(ax, annotate_inline=False)
 
         return ax
+
+    def plot_insert_dists(self, output="both", filter_threshold=None, axs=None):
+        # Default values for figure size and create the figure
+        if axs is None:
+            figsize = figsize or (12, 8)
+            fig, axs = plt.subplots(2, 1, figsize=figsize)
+        assert len(axs) == 3
+
+        insert_lengths = [
+            len(x)
+            for seq_id in self.seq_ids
+            for x in self.get_inserts(
+                seq_id, output=output, filter_threshold=filter_threshold
+            )
+        ]
+
+        props = [
+            len(y.query.seq) / len(self.seqs[y.query_id])
+            for seq_id in self.seq_ids
+            for x in self.get_inserts(
+                seq_id, output=output, filter_threshold=filter_threshold
+            )
+            for y in (x.hsp1, x.hsp2)
+            if y is not None
+        ]
+
+        sns.histplot(x=insert_lengths, ax=axs[0])
+        axs[0].set(title="Insert lengths")
+
+        sns.swarmplot(insert_lengths, ax=axs[1], color="black")
+        sns.violinplot(insert_lengths, ax=axs[1], width=0.5, saturation=0.4, inner=None)
+        sns.boxplot(insert_lengths, ax=axs[1], width=0.25, boxprops={"zorder": 2})
+        axs[1].set(xticklabels=[], title="Insert lengths")
+
+        sns.swarmplot(props, ax=axs[2], color="black")
+        sns.violinplot(props, ax=axs[2], width=0.5, saturation=0.4, inner=None)
+        sns.boxplot(props, ax=axs[2], width=0.2, boxprops={"zorder": 2})
+        axs[2].set(xticklabels=[], title="Proportions")
+
+        return axs
+
+    def to_dataframe(self, output="both", filter_threshold=None):
+        return pd.DataFrame(
+            [
+                (seq_id, x.hit_id, x.start, x.end, x.strand, len(x))
+                for seq_id in self.seq_ids
+                for x in self.get_inserts(
+                    seq_id, output=output, filter_threshold=filter_threshold
+                )
+            ],
+            columns=(
+                "seq_id",
+                "NCBI_accession_number",
+                "insert_start",
+                "insert_end",
+                "insert_strand",
+                "insert_length",
+            ),
+        )

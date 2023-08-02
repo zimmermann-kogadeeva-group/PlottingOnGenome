@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="plotting_on_genome",
-    version="0.0.7",
+    version="0.0.8",
     author="Bartosz Bartmanski",
     author_email="bartosz.bartmanski@embl.de",
     description="Package for making genome related plots",
@@ -20,6 +20,7 @@ setuptools.setup(
         "numpy",
         "biopython",
         "pandas",
+        "seaborn",
         "tqdm",
         "dna_features_viewer",
         "PySimpleGUI"

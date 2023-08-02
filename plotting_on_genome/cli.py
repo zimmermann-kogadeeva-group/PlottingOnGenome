@@ -26,6 +26,11 @@ def get_args():
         default=0.5,
         help="Threshold value for filtering out blast results with low coverage",
     )
+    parser.add_argument(
+        "--retmax",
+        default=200,
+        help="Maximum number of records to download from NCBI",
+    )
 
     # Get all the command line arguments
     return parser.parse_args()
@@ -40,6 +45,7 @@ def main():
         args.search_term,
         args.email,
         args.output_prefix,
+        retmax=int(args.retmax),
         fwd_suffix=args.fwd_suffix,
         rev_suffix=args.rev_suffix,
     )
@@ -47,7 +53,9 @@ def main():
     # Create linear plots of inserts with annotations
     for seq_id in pipeline.seq_ids:
         for i, insert in enumerate(
-            pipeline.get_inserts(seq_id, filter_threshold=args.filter)
+            pipeline.get_inserts(
+                seq_id, output=args.output, filter_threshold=args.filter
+            )
         ):
             fig, axs = plt.subplots(2, 1, figsize=(10, 8))
             pipeline.plot_insert(insert, axs=axs)
@@ -56,9 +64,19 @@ def main():
 
     # Create a plot of genome / all contigs as circular plot with inserts
     # layered on top
-    fig, ax = plt.subplots(figsize=(10, 30))
-    pipeline.plot_all_db_seqs(filter_threshold=args.filter, ax=ax)
+    fig, ax = plt.subplots(figsize=(10, 20))
+    pipeline.plot_all_db_seqs(output=args.output, filter_threshold=args.filter, ax=ax)
     fig.savefig(pipeline.work_dir / "genome_plot.png")
+
+    fig, axs = plt.subplots(1, 3, figsize=(12, 5))
+    pipeline.plot_insert_dists(
+        output=args.output, filter_threshold=args.filter, axs=axs
+    )
+    fig.savefig(pipeline.work_dir / "insert_length_dist.png")
+
+    pipeline.to_dataframe(output=args.output, filter_threshold=args.filter).to_csv(
+        pipeline.work_dir / "inserts.csv", index=False
+    )
 
 
 if __name__ == "__main__":

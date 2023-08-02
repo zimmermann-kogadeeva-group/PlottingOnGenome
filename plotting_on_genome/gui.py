@@ -18,9 +18,11 @@ class PropagatingThread(Thread):
     def run(self):
         self.exc = None
         try:
-            if hasattr(self, '_Thread__target'):
+            if hasattr(self, "_Thread__target"):
                 # Thread uses name mangling prior to Python 3.
-                self.ret = self._Thread__target(*self._Thread__args, **self._Thread__kwargs)
+                self.ret = self._Thread__target(
+                    *self._Thread__args, **self._Thread__kwargs
+                )
             else:
                 self.ret = self._target(*self._args, **self._kwargs)
         except BaseException as e:
@@ -64,6 +66,7 @@ def get_layout():
         [sg.Text("Forward suffix", pad=(5, 7))],
         [sg.Text("Reverse suffix", pad=(5, 7))],
         [sg.Text("Filter threshold", pad=(5, 7))],
+        [sg.Text("Retmax (Max. # of records from NCBI)", pad=(5, 7))],
         [sg.Text("Sequences file", pad=(5, 10))],
         [sg.Text("Output folder")],
     ]
@@ -95,6 +98,11 @@ def get_layout():
             )
         ],
         [
+            sg.InputText(
+                key="retmax", default_text=settings.get("retmax", 200), pad=(5, 7)
+            )
+        ],
+        [
             sg.Input(default_text=settings.get("seq_file")),
             sg.FilesBrowse(key="seq_file"),
         ],
@@ -118,6 +126,7 @@ def save_figures(user_input):
         user_input["search_term"],
         user_input["email"],
         user_input["output_prefix"],
+        retmax=int(user_input["retmax"]),
         fwd_suffix=user_input["fwd_suffix"],
         rev_suffix=user_input["rev_suffix"],
     )
@@ -125,7 +134,9 @@ def save_figures(user_input):
     # Create linear plots of inserts with annotations
     for seq_id in pipeline.seq_ids:
         for i, insert in enumerate(
-            pipeline.get_inserts(seq_id, output="matched", filter_threshold=user_input["filter"])
+            pipeline.get_inserts(
+                seq_id, output="matched", filter_threshold=user_input["filter"]
+            )
         ):
             fig, axs = plt.subplots(2, 1, figsize=(10, 8))
             pipeline.plot_insert(insert, axs=axs)
@@ -134,9 +145,21 @@ def save_figures(user_input):
 
     # Create a plot of genome / all contigs as circular plot with inserts
     # layered on top
-    fig, ax = plt.subplots(figsize=(10, 30))
-    pipeline.plot_all_db_seqs(output="matched", filter_threshold=user_input["filter"], ax=ax)
+    fig, ax = plt.subplots(figsize=(10, 20))
+    pipeline.plot_all_db_seqs(
+        output="matched", filter_threshold=user_input["filter"], ax=ax
+    )
     fig.savefig(pipeline.work_dir / "genome_plot.png")
+
+    fig, axs = plt.subplots(1, 3, figsize=(12, 5))
+    pipeline.plot_insert_dists(
+        output="matched", filter_threshold=user_input["filter"], axs=axs
+    )
+    fig.savefig(pipeline.work_dir / "insert_length_dist.png")
+
+    pipeline.to_dataframe(
+        output="matched", filter_threshold=user_input["filter"]
+    ).to_csv(pipeline.work_dir / "inserts.csv", index=False)
 
 
 def main():
