@@ -10,7 +10,7 @@ BLAST
 ## Download 
 
 Click
-[here](https://oc.embl.de/index.php/s/jEDkOkDuXS2ILs5/download)
+[here](https://oc.embl.de/index.php/s/Ahn7fKtJywiBDAX/download)
 to download the Windows executable. 
 
 If using this option, there is no need to follow any of the steps in the next
