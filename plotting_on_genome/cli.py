@@ -64,7 +64,7 @@ def main():
 
     # Create a plot of genome / all contigs as circular plot with inserts
     # layered on top
-    fig, ax = plt.subplots(figsize=(10, 20))
+    fig, ax = plt.subplots(figsize=(10, 30))
     pipeline.plot_all_db_seqs(output=args.output, filter_threshold=args.filter, ax=ax)
     fig.savefig(pipeline.work_dir / "genome_plot.png")
 

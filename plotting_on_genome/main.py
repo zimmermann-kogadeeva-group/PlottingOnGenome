@@ -442,18 +442,20 @@ class Pipeline(object):
             if y is not None
         ]
 
-        sns.histplot(x=insert_lengths, ax=axs[0])
-        axs[0].set(title="Insert lengths")
+        if insert_lengths:
+            sns.histplot(x=insert_lengths, ax=axs[0])
+            axs[0].set(title="Insert lengths")
 
-        sns.swarmplot(insert_lengths, ax=axs[1], color="black")
-        sns.violinplot(insert_lengths, ax=axs[1], width=0.5, saturation=0.4, inner=None)
-        sns.boxplot(insert_lengths, ax=axs[1], width=0.25, boxprops={"zorder": 2})
-        axs[1].set(xticklabels=[], title="Insert lengths")
+            sns.swarmplot(insert_lengths, ax=axs[1], color="black")
+            sns.violinplot(insert_lengths, ax=axs[1], width=0.5, saturation=0.4, inner=None)
+            sns.boxplot(insert_lengths, ax=axs[1], width=0.25, boxprops={"zorder": 2})
+            axs[1].set(xticklabels=[], title="Insert lengths")
 
-        sns.swarmplot(props, ax=axs[2], color="black")
-        sns.violinplot(props, ax=axs[2], width=0.5, saturation=0.4, inner=None)
-        sns.boxplot(props, ax=axs[2], width=0.2, boxprops={"zorder": 2})
-        axs[2].set(xticklabels=[], title="Proportions")
+        if props:
+            sns.swarmplot(props, ax=axs[2], color="black")
+            sns.violinplot(props, ax=axs[2], width=0.5, saturation=0.4, inner=None)
+            sns.boxplot(props, ax=axs[2], width=0.2, boxprops={"zorder": 2})
+            axs[2].set(xticklabels=[], title="Proportions")
 
         return axs
 

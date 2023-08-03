@@ -145,7 +145,7 @@ def save_figures(user_input):
 
     # Create a plot of genome / all contigs as circular plot with inserts
     # layered on top
-    fig, ax = plt.subplots(figsize=(10, 20))
+    fig, ax = plt.subplots(figsize=(10, 30))
     pipeline.plot_all_db_seqs(
         output="matched", filter_threshold=user_input["filter"], ax=ax
     )
