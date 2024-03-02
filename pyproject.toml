@@ -12,14 +12,15 @@ license = {file = "LICENSE"}
 authors = [{ name = "Bartosz Bartmanski", email = "bartosz.bartmanski@embl.de" }]
 
 dependencies = [
+    "biopython",
+    "dna_features_viewer",
     "matplotlib",
     "numpy",
-    "biopython",
     "pandas",
+    "platformdirs",
+    "PySimpleGUI",
     "seaborn",
-    "tqdm",
-    "dna_features_viewer",
-    "PySimpleGUI"
+    "tqdm"
 ]
 
 [project.scripts]
@@ -29,3 +30,19 @@ pog-gui = "plotting_on_genome.gui:main"
 [project.urls]
 "Homepage" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome"
 "Bug tracker" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome/issues/"
+
+[tool.isort]
+profile = "black"
+src_paths = ["src", "tests"]
+
+[tool.bumpver]
+current_version = "0.0.9"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message  = "Bump version {old_version} -> {new_version}"
+commit          = true
+tag             = true
+push            = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
+"src/plotting_on_genome/__init__.py" = ['^__version__ = "{version}"$']

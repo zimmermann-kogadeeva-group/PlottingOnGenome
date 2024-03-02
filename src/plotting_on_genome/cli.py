@@ -1,4 +1,5 @@
 import argparse
+
 import matplotlib.pyplot as plt
 
 from .main import Pipeline

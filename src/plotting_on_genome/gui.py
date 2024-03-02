@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 
 import json
+from threading import Thread
+
 import matplotlib
 import matplotlib.pyplot as plt
-from pathlib import Path
 import PySimpleGUI as sg
-from threading import Thread
+from platformdirs import user_cache_path
 
 from .main import Pipeline
 
-
 matplotlib.use("agg")
-settings_cache = Path.home() / ".plotting_on_genome_settings.json"
+
+SETTINGS_CACHE = (
+    user_cache_path("plotting_on_genome", ensure_exists=True) / "settings.json"
+)
 
 
 class PropagatingThread(Thread):
@@ -38,8 +41,8 @@ class PropagatingThread(Thread):
 def load_settings():
     # Default settings in case of first use of the package
     settings = {}
-    if settings_cache.exists():
-        with open(settings_cache, "r") as fh:
+    if SETTINGS_CACHE.exists():
+        with open(SETTINGS_CACHE, "r") as fh:
             settings = json.load(fh)
     return settings
 
@@ -51,7 +54,7 @@ def save_settings(settings):
     # object interact in PySimpleGUI
     settings["seq_file"] = settings[0]
     settings["output_prefix"] = settings[1]
-    with open(settings_cache, "w") as fh:
+    with open(SETTINGS_CACHE, "w") as fh:
         json.dump(settings, fh)
 
 

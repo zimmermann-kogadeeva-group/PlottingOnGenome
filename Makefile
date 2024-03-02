@@ -6,23 +6,20 @@ ACTIVATE = source .venv/bin/activate
 	python3 -m venv $@
 
 .PHONY: install_packages
-install_packages: .venv requirements.txt
-	${ACTIVATE} && pip install -r requirements.txt
+install_packages: .venv
+	${ACTIVATE} && pip install -e .
 
 .PHONY: requirements.txt
 requirements.txt:
 	${ACTIVATE} && pip freeze > $@
 
-.git/hooks/pre-commit:
-	ln -s ../../.pre-commit $@
+.PHONY: check
+check:
+	flake8 src
 
-.PHONY: install_precommit
-install_precommit: .git/hooks/pre-commit
-
+.PHONY: clean
 clean:
-	rm -rf *.egg-info build dist \
-		plotting_on_genome/__pycache__/ \
-		plotting_on_genome.spec
+	rm -rf src/*.egg-info build dist **/__pycache__/ plotting_on_genome.spec
 
 dist/plotting_on_genome:
 	${ACTIVATE} && pyinstaller -F -w -n $(notdir $@) pyinstaller_entry.py

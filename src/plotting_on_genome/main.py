@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 
-from copy import deepcopy
 import hashlib
-from itertools import product
 import json
+import re
+import subprocess
+from copy import deepcopy
+from itertools import product
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import re
 import seaborn as sns
-import subprocess
-
-from Bio import Entrez, SeqIO, SearchIO
+from Bio import Entrez, SearchIO, SeqIO
 from dna_features_viewer import (
-    GraphicFeature,
-    GraphicRecord,
     BiopythonTranslator,
     CircularGraphicRecord,
+    GraphicFeature,
+    GraphicRecord,
 )
 
 
@@ -360,7 +360,9 @@ class Pipeline(object):
 
         # Get IDs of NCBI records that were mapped to. Used to check where to
         # add labels if option is set.
-        mapped_ids = set([x.id for l in self.blast_results.values() for x in l.hits])
+        mapped_ids = set(
+            [x.id for res in self.blast_results.values() for x in res.hits]
+        )
 
         # Make plots of NCBI records and label only the ones that were mapped
         # to. Using BiopythonTranslator() didn't allow for control of labels,
@@ -420,8 +422,7 @@ class Pipeline(object):
     def plot_insert_dists(self, output="both", filter_threshold=None, axs=None):
         # Default values for figure size and create the figure
         if axs is None:
-            figsize = figsize or (12, 8)
-            fig, axs = plt.subplots(2, 1, figsize=figsize)
+            fig, axs = plt.subplots(2, 1, figsize=(12, 8))
         assert len(axs) == 3
 
         insert_lengths = [
@@ -447,7 +448,9 @@ class Pipeline(object):
             axs[0].set(title="Insert lengths")
 
             sns.swarmplot(insert_lengths, ax=axs[1], color="black")
-            sns.violinplot(insert_lengths, ax=axs[1], width=0.5, saturation=0.4, inner=None)
+            sns.violinplot(
+                insert_lengths, ax=axs[1], width=0.5, saturation=0.4, inner=None
+            )
             sns.boxplot(insert_lengths, ax=axs[1], width=0.25, boxprops={"zorder": 2})
             axs[1].set(xticklabels=[], title="Insert lengths")
 
