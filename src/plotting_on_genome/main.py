@@ -52,12 +52,7 @@ def get_length(fwd, rev):
         return fwd.hit_end - rev.hit_start
 
 
-def get_db(search_term, email, retmax=100, out_prefix=None):
-    gbk_file = None
-    if out_prefix is not None:
-        gbk_file = Path(out_prefix).with_suffix(".gbk")
-        fasta_file = Path(out_prefix).with_suffix(".fasta")
-
+def download_genome(search_term, email, retmax=100, gbk_file=None):
     if gbk_file is not None and Path(gbk_file).exists():
         # Read in the file
         return SeqIO.to_dict(SeqIO.parse(gbk_file, "genbank"))
@@ -85,13 +80,6 @@ def get_db(search_term, email, retmax=100, out_prefix=None):
         if gbk_file is not None and not Path(gbk_file).exists():
             # Save in genbank format (stores more information about the NCBI records)
             SeqIO.write(data_gb.values(), gbk_file, "genbank")
-
-            # Save in fasta format (only acceptable format for makeblastdb)
-            SeqIO.write(
-                [x for x in data_gb.values() if x.seq.defined],
-                fasta_file,
-                "fasta",
-            )
 
     return data_gb
 
@@ -151,26 +139,55 @@ class Pipeline(object):
     def __init__(
         self,
         seq_file,
-        search_term,
-        email,
         work_dir,
+        genome_file=None,
+        email=None,
+        search_term=None,
         retmax=200,
         fwd_suffix="_F",
         rev_suffix="_R",
         blast_clean=True,
+        col1="#8DDEF7",
+        col2="#CFFCCC",
         **kwargs,
     ):
+        # Check at genome_file or search_term is specified
+        assert (
+            genome_file is not None or search_term is not None
+        ), "Either genome_file or search_term needs to be given"
+
+        # Populate class attributes
         self.seq_file = seq_file
         self.work_dir = Path(work_dir)
-        self.search_term = search_term
-        self.__fwd_suf__ = fwd_suffix
-        self.__rev_suf__ = rev_suffix
+        self._fwd_suf = fwd_suffix
+        self._rev_suf = rev_suffix
+        self._col1 = col1
+        self._col2 = col2
 
+        # Make sure that specified work
         self.work_dir.mkdir(exist_ok=True)
 
-        self._db_col = "#8DDEF7" if "db_color" not in kwargs else kwargs["db_color"]
-        self._query_col = (
-            "#CFFCCC" if "query_color" not in kwargs else kwargs["query_color"]
+        # Get genome
+        if search_term is not None:
+            assert email is not None, "Email is required for NCBI API"
+
+            # Hash the search term to use as filename in cache dir
+            search_hashed = hashlib.sha1(search_term.encode()).hexdigest()
+            genome_file = self.work_dir / f"db_{search_hashed}.gbk"
+            genome_fasta = genome_file.with_suffix(".fasta")
+
+            self._genome = download_genome(search_term, email, retmax, genome_file)
+        else:
+            genome_file = Path(genome_file)
+            genome_fasta = self.work_dir / (genome_file.stem + ".fasta")
+
+            self._genome = SeqIO.to_dict(SeqIO.parse(genome_file, "genbank"))
+
+        # Save in fasta format (only acceptable format for makeblastdb)
+        SeqIO.write(
+            [x for x in self._genome.values() if x.seq.defined],
+            genome_fasta,
+            "fasta",
         )
 
         # Save the input parameters
@@ -178,39 +195,56 @@ class Pipeline(object):
             json.dump(
                 {
                     "seq_file": self.seq_file,
-                    "search_term": self.search_term,
+                    "search_term": search_term,
+                    "genome_file": str(genome_file),
                     "email": email,
                     "work_dir": str(self.work_dir),
                     "retmax": retmax,
-                    "fwd_suffix": self.__fwd_suf__,
-                    "rev_suffix": self.__rev_suf__,
+                    "fwd_suffix": self._fwd_suf,
+                    "rev_suffix": self._rev_suf,
                 },
                 fh,
             )
 
-        self.seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
+        self._seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
 
-        self.seq_ids = list(
+        self._seq_ids = list(
             {
-                re.sub(f"{self.__fwd_suf__}$|{self.__rev_suf__}$", "", x)
+                re.sub(f"{self._fwd_suf}$|{self._rev_suf}$", "", x)
                 for x in self.seqs.keys()
             }
         )
 
-        # Hash the search term to use as filename in cache dir
-        search_hashed = hashlib.sha1(search_term.encode()).hexdigest()
-        db_path = self.work_dir / f"db_{search_hashed}"
-        self.db = get_db(search_term, email, retmax, db_path)
-
         # Run BLAST and use xml format to save blast output
-        self.blast_results = run_blast(
-            seq_file, db_path.with_suffix(".fasta"), self.work_dir / "blast_output.xml"
+        self._blast_results = run_blast(
+            seq_file,
+            genome_fasta,
+            self.work_dir / "blast_output.xml",
         )
 
         if blast_clean:
-            self.blast_results = {
-                k: v for k, v in self.blast_results.items() if len(v.hits) > 0
+            self._blast_results = {
+                k: v for k, v in self._blast_results.items() if len(v.hits) > 0
             }
+
+    def __get_item__(self, idx):
+        return self.get_inserts(self._seq_ids[idx])
+
+    @property
+    def seqs(self):
+        return self._seqs
+
+    @property
+    def seq_ids(self):
+        return self._seq_ids
+
+    @property
+    def genome(self):
+        return self._genome
+
+    @property
+    def blast_results(self):
+        return self._blast_results
 
     def get_inserts(
         self, seq_id, output="both", filter_threshold=None, insert_max_len=10000
@@ -218,10 +252,10 @@ class Pipeline(object):
         matched = []
 
         fwds, revs = [], []
-        if seq_id + self.__fwd_suf__ in self.blast_results:
-            fwds = self.blast_results[seq_id + self.__fwd_suf__].hsps
-        if seq_id + self.__rev_suf__ in self.blast_results:
-            revs = self.blast_results[seq_id + self.__rev_suf__].hsps
+        if seq_id + self._fwd_suf in self.blast_results:
+            fwds = self.blast_results[seq_id + self._fwd_suf].hsps
+        if seq_id + self._rev_suf in self.blast_results:
+            revs = self.blast_results[seq_id + self._rev_suf].hsps
 
         if filter_threshold is not None:
             if not 0 <= filter_threshold <= 1:
@@ -266,7 +300,7 @@ class Pipeline(object):
         assert len(axs) == 2
 
         # Get the sequence id
-        seq_id = re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", insert.query_id)
+        seq_id = re.sub(f"{self._fwd_suf}|{self._rev_suf}$", "", insert.query_id)
 
         # Create a new graphic object for query sequence
         features = [
@@ -274,7 +308,7 @@ class Pipeline(object):
                 start=insert.start + 1,  # +1 due to python's 0-indexing
                 end=insert.end,
                 strand=insert.strand,
-                color=self._query_col,
+                color=self._col2,
                 label=seq_id,
             )
         ]
@@ -290,10 +324,10 @@ class Pipeline(object):
         # Create graphic objects for all the genes and CDSes using
         # dna_features_viewer.BiopythonTranslator()
         conv = BiopythonTranslator()
-        conv.default_feature_color = self._db_col
+        conv.default_feature_color = self._col1
         features = [
             conv.translate_feature(shift_feature(x, insert.start - buffer))
-            for x in self.db[insert.hit_id][
+            for x in self._genome[insert.hit_id][
                 insert.start - buffer : insert.end + buffer
             ].features
         ]
@@ -348,7 +382,7 @@ class Pipeline(object):
         db_seqs = sorted(
             [
                 set_feature(x.features[0], id=x.id)
-                for x in self.db.values()
+                for x in self._genome.values()
                 if x.seq.defined
             ],
             key=lambda x: len(x),
@@ -373,14 +407,14 @@ class Pipeline(object):
                 end=x.location.end + shifts[i],
                 strand=x.strand,
                 label=x.id if labels else None,
-                color=self._db_col,
+                color=self._col1,
             )
             if x.id in mapped_ids
             else GraphicFeature(
                 start=x.location.start + shifts[i] + 1,  # +1 due to python's 0-indexing
                 end=x.location.end + shifts[i],
                 strand=x.strand,
-                color=self._db_col,
+                color=self._col1,
             )
             for i, x in enumerate(db_seqs)
         ]
@@ -389,7 +423,7 @@ class Pipeline(object):
         # sure locations are shifted correctly.
         ids = [x.id for x in db_seqs]
         seq_ids = {
-            re.sub(f"{self.__fwd_suf__}|{self.__rev_suf__}$", "", x)
+            re.sub(f"{self._fwd_suf}|{self._rev_suf}$", "", x)
             for x in self.blast_results.keys()
         }
 
@@ -399,7 +433,7 @@ class Pipeline(object):
                 start=insert.start + shifts[ids.index(insert.hit_id)] + 1,
                 end=insert.end + shifts[ids.index(insert.hit_id)],
                 strand=insert.strand,
-                color=self._query_col,
+                color=self._col2,
                 label=None,
             )
             for seq_id in seq_ids
