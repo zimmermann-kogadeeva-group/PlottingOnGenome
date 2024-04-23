@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install . && pip3 install streamlit
+RUN pip install . && pip install streamlit
 
 RUN curl https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.15.0+-x64-linux.tar.gz -o blast.tar.gz && \
     tar -C /opt/ -zxvf blast.tar.gz && \
