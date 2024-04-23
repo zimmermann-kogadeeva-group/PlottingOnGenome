@@ -1,6 +1,6 @@
 
 publish:
-  stage: publish
+  stage: build
   image: python:latest
   script:
     - pip install build twine
