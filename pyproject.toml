@@ -18,10 +18,14 @@ dependencies = [
     "numpy",
     "pandas",
     "platformdirs",
-    "PySimpleGUI",
     "seaborn",
     "tqdm"
 ]
+
+[project.optional-dependencies]
+gui = ["PySimpleGUI"]
+exe = ["PySimpleGUI", "pyinstaller"]
+streamlit = ["streamlit"]
 
 [project.scripts]
 pog = "plotting_on_genome.__main__:main"

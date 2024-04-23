@@ -1,10 +1,4 @@
-from .main import (
-    Insert,
-    Pipeline,
-    download_genome,
-    run_blast,
-    set_feature,
-    shift_feature,
-)
+from .main import Insert, Pipeline, download_genome, run_blast
+from .plotting import plot_insert, plot_insert_dists, plot_on_genome
 
 __version__ = "0.0.10"
