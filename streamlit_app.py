@@ -59,14 +59,14 @@ def run_pipeline(
             fh.write(seq_fh.getbuffer())
 
         return Pipeline(
-            seq_path,
-            dirpath,
-            genome_path,
-            email,
-            search_term,
-            retmax,
-            fwd_suf,
-            rev_suf,
+            seq_file=seq_path,
+            work_dir=dirpath,
+            genome_file=genome_path,
+            search_term=search_term,
+            email=email,
+            retmax=retmax,
+            fwd_suffix=fwd_suf,
+            rev_suffix=rev_suf,
         )
 
 
