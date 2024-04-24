@@ -23,13 +23,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gui = ["PySimpleGUI"]
-exe = ["PySimpleGUI", "pyinstaller"]
 streamlit = ["streamlit"]
 
 [project.scripts]
 pog = "plotting_on_genome.__main__:main"
-pog-gui = "plotting_on_genome.gui:main"
 
 [project.urls]
 "Homepage" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome"

@@ -13,7 +13,8 @@ from Bio import Entrez, SearchIO, SeqIO
 
 def correct_hit_id(x):
     """Helper function to get rid red| or emb| added by BLAST to contig ID"""
-    x.id = x.id.split("|")[1]
+    if "|" in x.id:
+        x.id = x.id.split("|")[1]
     return x
 
 

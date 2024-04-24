@@ -54,9 +54,10 @@ def run_pipeline(
         else:
             genome_path = None
 
-        seq_path = str(dirpath / seq_fh.name)
+        seq_path = str(dirpath / "seqs.fasta")
         with open(seq_path, "wb") as fh:
-            fh.write(seq_fh.getbuffer())
+            for seq in seq_fh:
+                fh.write(seq.getbuffer())
 
         return Pipeline(
             seq_file=seq_path,
@@ -98,12 +99,17 @@ def get_main_inputs():
     else:
         genome_fh = st.file_uploader("Upload genome:", type="gbk", key="genome")
 
-    seq_fh = st.file_uploader("Sequence file:", type=["fasta", "fna"], key="seqs")
+    seq_fh = st.file_uploader(
+        "Sequence file:",
+        type=["fasta", "fas", "fna"],
+        key="seqs",
+        accept_multiple_files=True,
+    )
 
     fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
     rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
 
-    filter_threshold = st.text_input("Filter threshold:", None)
+    filter_threshold = st.text_input("Filter threshold (optional):", None)
     if filter_threshold is not None:
         st.session_state.filter_threshold = int(filter_threshold)
 
