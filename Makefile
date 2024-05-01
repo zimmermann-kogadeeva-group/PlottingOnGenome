@@ -30,7 +30,3 @@ tags:
 
 clean:
 	rm -rf src/*.egg-info/ **/__pycache__/ build/ dist/ report.xml
-
-dist/plotting_on_genome:
-	${ACTIVATE} && pyinstaller -F -w -n $(notdir $@) pyinstaller_entry.py
-
