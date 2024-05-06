@@ -5,9 +5,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import streamlit as st
 
-from plotting_on_genome import Pipeline, plot_insert, plot_insert_dists, plot_on_genome
+import plotting_on_genome as pog
 
 # st.set_page_config(layout="wide")
 
@@ -59,7 +60,7 @@ def run_pipeline(
             for seq in seq_fh:
                 fh.write(seq.getbuffer())
 
-        res = Pipeline(
+        res = pog.Pipeline(
             seq_file=seq_path,
             work_dir=dirpath,
             genome_file=genome_path,
@@ -147,7 +148,6 @@ def show_results():
             "plot inserts",
             "plot genome",
             "plot insert dists",
-            "show data",
         ],
         None,
     )
@@ -161,35 +161,52 @@ def show_results():
 
             inserts = p.get_inserts(seq_id, insert_types, filter_threshold)
 
-            for insert in inserts:
+            st.write(
+                pd.concat(
+                    [
+                        insert.to_dataframe().assign(insert_idx=idx + 1)
+                        for idx, insert in enumerate(inserts)
+                    ]
+                )
+            )
+            for idx, insert in enumerate(inserts):
                 fig, axs = plt.subplots(2, 1, figsize=(10, 10), height_ratios=[3, 5])
-                axs = plot_insert(insert, p.genome, axs=axs)
+                fig.suptitle(f"Insert {idx+1}")
+                axs = pog.plot_insert(insert, axs=axs)
                 st.pyplot(fig)
                 plt.close()
 
         elif option == "plot genome":
-            add_inserts = st.toggle("Add inserts", True)
             labels = st.toggle("Labels")
-            if add_inserts:
+            inserts = []
+            if st.toggle("Plot inserts", True):
                 inserts = p.get_all_inserts(insert_types, filter_threshold)
-            else:
-                inserts = []
+
+            st.write(p.to_dataframe(insert_types, filter_threshold))
 
             fig, ax = plt.subplots(figsize=(10, 10 * (1 + 2 * labels)))
-            ax = plot_on_genome(inserts, p.genome, labels=labels, ax=ax)
+            ax = pog.plot_on_genome(p.genome, inserts, labels=labels, ax=ax)
             st.pyplot(fig, use_container_width=True)
             plt.close()
 
         elif option == "plot insert dists":
+            plot_type = st.radio(
+                "Plot type:", ["histogram", "violinplot+boxplot+stripplot"]
+            )
             inserts = p.get_all_inserts(insert_types, filter_threshold)
 
-            fig, axs = plt.subplots(1, 3, figsize=(12, 5))
-            plot_insert_dists(inserts, axs)
-            st.pyplot(fig)
-            plt.close()
+            if plot_type == "histogram":
+                fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+                pog.plot_histogram(inserts, axs)
+                st.pyplot(fig)
+            elif plot_type == "violinplot+boxplot+stripplot":
+                fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+                pog.plot_dists(inserts, axs)
+                st.pyplot(fig)
+            else:
+                raise ValueError("Incorrect plot type")
 
-        elif option == "show data":
-            st.write(p.to_dataframe(insert_types, filter_threshold))
+            plt.close()
 
         if st.button("Reset"):
             st.session_state.stage = 0

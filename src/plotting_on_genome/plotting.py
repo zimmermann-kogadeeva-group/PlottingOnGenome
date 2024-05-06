@@ -21,7 +21,7 @@ def set_feature(feature, **kwargs):
 
 
 def plot_insert(
-    insert, genome, buffer=4000, figsize=None, axs=None, col1="#8DDEF7", col2="#CFFCCC"
+    insert, buffer=4000, figsize=None, axs=None, col1="#8DDEF7", col2="#CFFCCC"
 ):
     # Default values for figure size and create the figure
     if axs is None:
@@ -52,12 +52,7 @@ def plot_insert(
     # dna_features_viewer.BiopythonTranslator()
     conv = BiopythonTranslator()
     conv.default_feature_color = col1
-    features = [
-        conv.translate_feature(shift_feature(x, insert.start - buffer))
-        for x in genome[insert.hit_id][
-            insert.start - buffer : insert.end + buffer
-        ].features
-    ]
+    features = [conv.translate_feature(x) for x in insert.genes]
 
     # Plot the genes and CDSes in the region of the mapped sequence
     record_hits = GraphicRecord(
@@ -71,8 +66,8 @@ def plot_insert(
 
 
 def plot_on_genome(
-    inserts,
     genome,
+    inserts=None,
     labels=True,
     figsize=None,
     col1="#8DDEF7",
@@ -82,6 +77,7 @@ def plot_on_genome(
     if ax is None:
         figsize = figsize or (10, 20)
         fig, ax = plt.subplots(figsize=figsize)
+    inserts = inserts or []
 
     # Get just the sequences for each NCBI record and order them by size in
     # descending order. 'x.features[0]' to get the whole sequence for a
@@ -137,28 +133,72 @@ def plot_on_genome(
     return ax
 
 
-def plot_insert_dists(inserts, axs=None):
+def plot_histogram(inserts, axs=None):
     # Default values for figure size and create the figure
     if axs is None:
-        fig, axs = plt.subplots(1, 3, figsize=(12, 5))
-    assert len(axs) == 3
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+    assert len(axs) == 2
 
     insert_lengths = [len(x) for x in inserts]
-    props = [x for x in inserts for x in x.coverage]
+    coverage = [x for x in inserts for x in x.coverage]
 
     if insert_lengths:
         sns.histplot(x=insert_lengths, ax=axs[0])
         axs[0].set(title="Insert lengths")
+    if coverage:
+        sns.histplot(x=coverage, ax=axs[1])
+        axs[1].set(title="Coverage")
 
-        sns.stripplot(insert_lengths, ax=axs[1], color="black")
-        sns.violinplot(insert_lengths, ax=axs[1], width=0.5, saturation=0.4, inner=None)
-        sns.boxplot(insert_lengths, ax=axs[1], width=0.25, boxprops={"zorder": 2})
-        axs[1].set(xticklabels=[], title="Insert lengths")
 
-    if props:
-        sns.stripplot(props, ax=axs[2], color="black")
-        sns.violinplot(props, ax=axs[2], width=0.5, saturation=0.4, inner=None)
-        sns.boxplot(props, ax=axs[2], width=0.2, boxprops={"zorder": 2})
-        axs[2].set(xticklabels=[], title="Proportions")
+def plot_dists(inserts, axs=None):
+    # Default values for figure size and create the figure
+    if axs is None:
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+    assert len(axs) == 2
+
+    insert_lengths = [len(x) for x in inserts]
+    coverage = [x for x in inserts for x in x.coverage]
+
+    if insert_lengths:
+        sns.stripplot(x=1, y=insert_lengths, ax=axs[0], color="black")
+        sns.violinplot(
+            x=2,
+            y=insert_lengths,
+            ax=axs[0],
+            color="steelblue",
+            width=1,
+            saturation=0.4,
+            inner=None,
+        )
+        sns.boxplot(
+            x=3,
+            y=insert_lengths,
+            ax=axs[0],
+            color="steelblue",
+            width=0.5,
+            boxprops={"zorder": 2},
+        )
+        axs[0].set(xticklabels=[], title="Insert lengths")
+
+    if coverage:
+        sns.stripplot(x=1, y=coverage, ax=axs[1], color="black")
+        sns.violinplot(
+            x=2,
+            y=coverage,
+            ax=axs[1],
+            color="steelblue",
+            width=1,
+            saturation=0.4,
+            inner=None,
+        )
+        sns.boxplot(
+            x=3,
+            y=coverage,
+            ax=axs[1],
+            color="steelblue",
+            width=0.5,
+            boxprops={"zorder": 2},
+        )
+        axs[1].set(xticklabels=[], title="Coverage")
 
     return axs
