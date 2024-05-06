@@ -8,7 +8,15 @@ from itertools import product
 from pathlib import Path
 
 import pandas as pd
+from BCBio import GFF
 from Bio import Entrez, SearchIO, SeqIO
+
+
+def shift_feature(feature, shift=0):
+    """Helper function to shift a Biopython feature without changing the original"""
+    new_feature = deepcopy(feature)
+    new_feature.location = feature.location + shift
+    return new_feature
 
 
 def correct_hit_id(x):
@@ -164,7 +172,14 @@ class Pipeline(object):
             genome_file = Path(genome_file)
             genome_fasta = self.work_dir / (genome_file.stem + ".fasta")
 
-            self._genome = SeqIO.to_dict(SeqIO.parse(genome_file, "genbank"))
+            if genome_file.suffix == ".gff":
+                self._genome = SeqIO.to_dict(GFF.parse(genome_file))
+            elif genome_file.suffix == ".gbk":
+                self._genome = SeqIO.to_dict(SeqIO.parse(genome_file, "genbank"))
+            else:
+                raise RuntimeError(
+                    "Wrong format expected either `.gbk` or `.gff` file."
+                )
 
         # Save in fasta format (only acceptable format for makeblastdb)
         SeqIO.write(

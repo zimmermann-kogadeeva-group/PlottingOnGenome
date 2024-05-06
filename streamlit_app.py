@@ -59,7 +59,7 @@ def run_pipeline(
             for seq in seq_fh:
                 fh.write(seq.getbuffer())
 
-        return Pipeline(
+        res = Pipeline(
             seq_file=seq_path,
             work_dir=dirpath,
             genome_file=genome_path,
@@ -69,6 +69,8 @@ def run_pipeline(
             fwd_suffix=fwd_suf,
             rev_suffix=rev_suf,
         )
+
+        return res
 
 
 def submit(*args):
@@ -97,7 +99,9 @@ def get_main_inputs():
             "Retmax (Max. # of records from NCBI)", 200, key="retmax"
         )
     else:
-        genome_fh = st.file_uploader("Upload genome:", type="gbk", key="genome")
+        genome_fh = st.file_uploader(
+            "Upload genome:", type=("gbk", "gff"), key="genome"
+        )
 
     seq_fh = st.file_uploader(
         "Sequence file:",
@@ -136,22 +140,22 @@ def get_main_inputs():
     )
 
 
-def main():
-    st.title("PlottingOnGenome")
+def show_results():
+    option = st.selectbox(
+        "plot type:",
+        [
+            "plot inserts",
+            "plot genome",
+            "plot insert dists",
+            "show data",
+        ],
+        None,
+    )
+    p = st.session_state.pipeline
+    insert_types = st.session_state.insert_types
+    filter_threshold = st.session_state.filter_threshold
 
-    if st.session_state.stage == 0:
-        get_main_inputs()
-
-    if st.session_state.stage >= 1:
-        option = st.selectbox(
-            "plot type:",
-            ["plot inserts", "plot all on genome", "plot insert dists", "show data"],
-            None,
-        )
-        p = st.session_state.pipeline
-        insert_types = st.session_state.insert_types
-        filter_threshold = st.session_state.filter_threshold
-
+    if p is not None:
         if option == "plot inserts":
             seq_id = st.selectbox("Select sequence id:", p.seq_ids)
 
@@ -163,13 +167,18 @@ def main():
                 st.pyplot(fig)
                 plt.close()
 
-        elif option == "plot all on genome":
-            labels = st.radio("Labels:", (True, False))
-            inserts = p.get_all_inserts(insert_types, filter_threshold)
+        elif option == "plot genome":
+            add_inserts = st.toggle("Add inserts", True)
+            labels = st.toggle("Labels")
+            if add_inserts:
+                inserts = p.get_all_inserts(insert_types, filter_threshold)
+            else:
+                inserts = []
 
             fig, ax = plt.subplots(figsize=(10, 10 * (1 + 2 * labels)))
             ax = plot_on_genome(inserts, p.genome, labels=labels, ax=ax)
             st.pyplot(fig, use_container_width=True)
+            plt.close()
 
         elif option == "plot insert dists":
             inserts = p.get_all_inserts(insert_types, filter_threshold)
@@ -177,6 +186,7 @@ def main():
             fig, axs = plt.subplots(1, 3, figsize=(12, 5))
             plot_insert_dists(inserts, axs)
             st.pyplot(fig)
+            plt.close()
 
         elif option == "show data":
             st.write(p.to_dataframe(insert_types, filter_threshold))
@@ -184,6 +194,16 @@ def main():
         if st.button("Reset"):
             st.session_state.stage = 0
             st.rerun()
+
+
+def main():
+    st.title("PlottingOnGenome")
+
+    if st.session_state.stage == 0:
+        get_main_inputs()
+
+    if st.session_state.stage >= 1:
+        show_results()
 
 
 if __name__ == "__main__":

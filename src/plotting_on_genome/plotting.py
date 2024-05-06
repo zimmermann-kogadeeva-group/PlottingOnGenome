@@ -11,13 +11,6 @@ from dna_features_viewer import (
 )
 
 
-def shift_feature(feature, shift=0):
-    """Helper function to shift a Biopython feature without changing the original"""
-    new_feature = deepcopy(feature)
-    new_feature.location = feature.location + shift
-    return new_feature
-
-
 def set_feature(feature, **kwargs):
     """Helper function to set an attribute in Biopython feature"""
     new_feature = deepcopy(feature)
@@ -39,7 +32,7 @@ def plot_insert(
     # Create a new graphic object for query sequence
     features = [
         GraphicFeature(
-            start=insert.start + 1,  # +1 due to python's 0-indexing
+            start=insert.start,
             end=insert.end,
             strand=insert.strand,
             color=col2,
@@ -49,7 +42,7 @@ def plot_insert(
 
     # Plot the query sequence on the upper axes
     record_seq = GraphicRecord(
-        first_index=insert.start - buffer + 1,  # +1 due to python's 0-indexing
+        first_index=insert.start - buffer,
         sequence_length=insert.end - insert.start + 2 * buffer,
         features=features,
     )
@@ -68,7 +61,7 @@ def plot_insert(
 
     # Plot the genes and CDSes in the region of the mapped sequence
     record_hits = GraphicRecord(
-        first_index=insert.start - buffer + 1,  # +1 due to python's 0-indexing
+        first_index=insert.start - buffer,
         sequence_length=insert.end - insert.start + 2 * buffer,
         features=features,
     )
@@ -94,7 +87,7 @@ def plot_on_genome(
     # descending order. 'x.features[0]' to get the whole sequence for a
     # given NCBI record. Other features are specific genes, cfs, etc.
     db_seqs = sorted(
-        [set_feature(x.features[0], id=x.id) for x in genome.values() if x.seq.defined],
+        [x for x in genome.values() if x.seq.defined],
         key=lambda x: len(x),
         reverse=True,
     )
@@ -112,17 +105,9 @@ def plot_on_genome(
     features = [
         (
             GraphicFeature(
-                start=x.location.start + shifts[i] + 1,  # +1 due to python's 0-indexing
-                end=x.location.end + shifts[i],
-                strand=x.strand,
-                label=x.id if labels else None,
-                color=col1,
-            )
-            if x.id in mapped_ids
-            else GraphicFeature(
-                start=x.location.start + shifts[i] + 1,  # +1 due to python's 0-indexing
-                end=x.location.end + shifts[i],
-                strand=x.strand,
+                start=shifts[i],
+                end=shifts[i + 1],
+                label=x.id if (labels and x.id in mapped_ids) else None,
                 color=col1,
             )
         )
