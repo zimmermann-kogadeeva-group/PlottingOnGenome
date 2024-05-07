@@ -295,8 +295,8 @@ class Pipeline(object):
         if filter_threshold is not None:
             if not 0 <= filter_threshold <= 1:
                 raise ValueError("Filter value needs to be between 0 and 1")
-            fwds = [x for x in fwds if converages[x.query_id] > filter_threshold]
-            revs = [x for x in revs if converages[x.query_id] > filter_threshold]
+            fwds = [x for x in fwds if coverages[x.query_id] > filter_threshold]
+            revs = [x for x in revs if coverages[x.query_id] > filter_threshold]
 
         # Match appropriate hits
         matched = []

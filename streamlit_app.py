@@ -51,14 +51,16 @@ def run_pipeline(
         if genome_fh is not None:
             genome_path = str(dirpath / genome_fh.name)
             with open(genome_path, "wb") as fh:
-                fh.write(genome_fh.getbuffer())
+                fh.write(genome_fh.getvalue())
         else:
             genome_path = None
 
         seq_path = str(dirpath / "seqs.fasta")
         with open(seq_path, "wb") as fh:
             for seq in seq_fh:
-                fh.write(seq.getbuffer())
+                # Make sure that there is new line between individual seqs
+                fh.write(seq.getvalue())
+                fh.write(b"\n")
 
         res = pog.Pipeline(
             seq_file=seq_path,
@@ -114,9 +116,9 @@ def get_main_inputs():
     fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
     rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
 
-    filter_threshold = st.text_input("Filter threshold (optional):", None)
+    filter_threshold = st.number_input("Filter threshold (optional):", 0.0, 1.0, None)
     if filter_threshold is not None:
-        st.session_state.filter_threshold = int(filter_threshold)
+        st.session_state.filter_threshold = float(filter_threshold)
 
     st.session_state.insert_types = st.selectbox(
         "insert types:", ["both", "matched", "unmatched"]
@@ -167,7 +169,7 @@ def show_results():
                         insert.to_dataframe().assign(insert_idx=idx + 1)
                         for idx, insert in enumerate(inserts)
                     ]
-                )
+                ).reset_index(drop=True)
             )
             for idx, insert in enumerate(inserts):
                 fig, axs = plt.subplots(2, 1, figsize=(10, 10), height_ratios=[3, 5])
