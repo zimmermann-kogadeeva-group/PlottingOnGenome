@@ -3,7 +3,7 @@ import argparse
 import matplotlib.pyplot as plt
 
 from .main import Pipeline
-from .plotting import plot_insert, plot_insert_dists, plot_on_genome
+from .plotting import plot_insert, plot_insert_dists, plot_genome
 
 
 def get_args(*args):

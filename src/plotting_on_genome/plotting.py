@@ -21,7 +21,7 @@ def set_feature(feature, **kwargs):
 
 
 def plot_insert(
-    insert, buffer=4000, figsize=None, axs=None, col1="#8DDEF7", col2="#CFFCCC"
+    insert, buffer=4000, col1="#8DDEF7", col2="#CFFCCC", figsize=None, axs=None
 ):
     # Default values for figure size and create the figure
     if axs is None:
@@ -65,13 +65,23 @@ def plot_insert(
     return axs
 
 
-def plot_on_genome(
+def _get_contig_label(contig, mapped_ids, show_labels=True):
+    if show_labels:
+        if mapped_ids and contig.id in mapped_ids:
+            label = contig.id
+        else:
+            return contig.id
+    else:
+        return None
+
+
+def plot_genome(
     genome,
     inserts=None,
-    labels=True,
-    figsize=None,
+    show_labels=True,
     col1="#8DDEF7",
     col2="#CFFCCC",
+    figsize=None,
     ax=None,
 ):
     if ax is None:
@@ -103,7 +113,7 @@ def plot_on_genome(
             GraphicFeature(
                 start=shifts[i],
                 end=shifts[i + 1],
-                label=x.id if (labels and x.id in mapped_ids) else None,
+                label=_get_contig_label(x, mapped_ids, show_labels),
                 color=col1,
             )
         )
@@ -150,7 +160,7 @@ def plot_histogram(inserts, axs=None):
         axs[1].set(title="Coverage")
 
 
-def plot_dists(inserts, axs=None):
+def plot_dists(inserts, color="steelblue", saturation=0.4, width=1.0, axs=None):
     # Default values for figure size and create the figure
     if axs is None:
         fig, axs = plt.subplots(1, 2, figsize=(12, 5))
@@ -165,17 +175,17 @@ def plot_dists(inserts, axs=None):
             x=2,
             y=insert_lengths,
             ax=axs[0],
-            color="steelblue",
-            width=1,
-            saturation=0.4,
+            color=color,
+            width=width,
+            saturation=saturation,
             inner=None,
         )
         sns.boxplot(
             x=3,
             y=insert_lengths,
             ax=axs[0],
-            color="steelblue",
-            width=0.5,
+            color=color,
+            width=0.5 * width,
             boxprops={"zorder": 2},
         )
         axs[0].set(xticklabels=[], title="Insert lengths")
@@ -186,17 +196,17 @@ def plot_dists(inserts, axs=None):
             x=2,
             y=coverage,
             ax=axs[1],
-            color="steelblue",
-            width=1,
-            saturation=0.4,
+            color=color,
+            width=width,
+            saturation=saturation,
             inner=None,
         )
         sns.boxplot(
             x=3,
             y=coverage,
             ax=axs[1],
-            color="steelblue",
-            width=0.5,
+            color=color,
+            width=0.5 * width,
             boxprops={"zorder": 2},
         )
         axs[1].set(xticklabels=[], title="Coverage")

@@ -187,7 +187,7 @@ def show_results():
             st.write(p.to_dataframe(insert_types, filter_threshold))
 
             fig, ax = plt.subplots(figsize=(10, 10 * (1 + 2 * labels)))
-            ax = pog.plot_on_genome(p.genome, inserts, labels=labels, ax=ax)
+            ax = pog.plot_genome(p.genome, inserts, labels=labels, ax=ax)
             st.pyplot(fig, use_container_width=True)
             plt.close()
 

@@ -149,6 +149,7 @@ class Pipeline(object):
         self,
         seq_file,
         work_dir,
+        *,
         genome_file=None,
         search_term=None,
         email=None,
@@ -170,7 +171,7 @@ class Pipeline(object):
         self._rev_suf = rev_suffix
 
         # Make sure that specified work
-        self.work_dir.mkdir(exist_ok=True)
+        self.work_dir.mkdir(exist_ok=True, parents=True)
 
         # Get genome
         if search_term is not None:
@@ -273,6 +274,7 @@ class Pipeline(object):
         buffer=4000,
         avg_insert_length=4000,
     ):
+        assert insert_types in ("matched", "unmatched", "both")
         if isinstance(seq_id_or_idx, int):
             seq_id = self._seq_ids[seq_id_or_idx]
         else:
