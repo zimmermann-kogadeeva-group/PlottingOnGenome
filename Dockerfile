@@ -18,7 +18,7 @@ RUN curl https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.16.0/ncbi-blast
     tar -C /opt/ -zxvf blast.tar.gz && \
     rm blast.tar.gz
 
-ENV PATH="${PATH}:/opt/ncbi-blast-2.15.0+/bin"
+ENV PATH="${PATH}:/opt/ncbi-blast-2.16.0+/bin"
 
 EXPOSE 8501
 
