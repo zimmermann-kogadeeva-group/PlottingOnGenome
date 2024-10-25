@@ -163,20 +163,27 @@ def show_results():
 
             inserts = p.get_inserts(seq_id, insert_types, filter_threshold)
 
-            st.write(
-                pd.concat(
-                    [
-                        insert.to_dataframe().assign(insert_idx=idx + 1)
-                        for idx, insert in enumerate(inserts)
-                    ]
-                ).reset_index(drop=True)
-            )
-            for idx, insert in enumerate(inserts):
-                fig, axs = plt.subplots(2, 1, figsize=(10, 10), height_ratios=[3, 5])
-                fig.suptitle(f"Insert {idx+1}")
-                axs = pog.plot_insert(insert, axs=axs)
-                st.pyplot(fig)
-                plt.close()
+            if len(inserts):
+
+                st.write(
+                    pd.concat(
+                        [
+                            insert.to_dataframe().assign(insert_idx=idx + 1)
+                            for idx, insert in enumerate(inserts)
+                        ]
+                    ).reset_index(drop=True)
+                )
+
+                for idx, insert in enumerate(inserts):
+                    fig, axs = plt.subplots(
+                        2, 1, figsize=(10, 10), height_ratios=[3, 5]
+                    )
+                    fig.suptitle(f"Insert {idx+1}")
+                    axs = pog.plot_insert(insert, axs=axs)
+                    st.pyplot(fig)
+                    plt.close()
+            else:
+                st.write(f"No inserts found for {seq_id}!")
 
         elif option == "plot genome":
             labels = st.toggle("Labels")
@@ -187,7 +194,7 @@ def show_results():
             st.write(p.to_dataframe(insert_types, filter_threshold))
 
             fig, ax = plt.subplots(figsize=(10, 10 * (1 + 2 * labels)))
-            ax = pog.plot_genome(p.genome, inserts, labels=labels, ax=ax)
+            ax = pog.plot_genome(p.genome, inserts, show_labels=labels, ax=ax)
             st.pyplot(fig, use_container_width=True)
             plt.close()
 
@@ -199,11 +206,11 @@ def show_results():
 
             if plot_type == "histogram":
                 fig, axs = plt.subplots(1, 2, figsize=(12, 5))
-                pog.plot_histogram(inserts, axs)
+                pog.plot_histogram(inserts, axs=axs)
                 st.pyplot(fig)
             elif plot_type == "violinplot+boxplot+stripplot":
                 fig, axs = plt.subplots(1, 2, figsize=(12, 5))
-                pog.plot_dists(inserts, axs)
+                pog.plot_dists(inserts, axs=axs)
                 st.pyplot(fig)
             else:
                 raise ValueError("Incorrect plot type")

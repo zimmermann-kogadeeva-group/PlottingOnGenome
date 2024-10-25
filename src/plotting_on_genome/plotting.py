@@ -68,9 +68,9 @@ def plot_insert(
 def _get_contig_label(contig, mapped_ids, show_labels=True):
     if show_labels:
         if mapped_ids and contig.id in mapped_ids:
-            label = contig.id
-        else:
             return contig.id
+        else:
+            return None
     else:
         return None
 
@@ -161,6 +161,7 @@ def plot_histogram(inserts, axs=None):
 
 
 def plot_dists(inserts, color="steelblue", saturation=0.4, width=1.0, axs=None):
+    print(color)
     # Default values for figure size and create the figure
     if axs is None:
         fig, axs = plt.subplots(1, 2, figsize=(12, 5))
