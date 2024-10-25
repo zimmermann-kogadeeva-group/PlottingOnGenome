@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install --no-cache ".[streamlit]"
 
-RUN curl https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.15.0+-x64-linux.tar.gz -o blast.tar.gz && \
+RUN curl https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.16.0/ncbi-blast-2.16.0+-x64-linux.tar.gz -o blast.tar.gz && \
     tar -C /opt/ -zxvf blast.tar.gz && \
     rm blast.tar.gz
 
