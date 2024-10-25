@@ -113,7 +113,7 @@ def run_blast(seq_file, db_file, blast_output):
 
 # TODO: use dataclass
 class Insert(object):
-    def __init__(self, start, end, seq_id, coverage, hsp1, hsp2=None, genes=None):
+    def __init__(self, start, end, seq_id, cov, hsp1, hsp2=None, genes=None):
         # TODO: maybe switch to using a list of hsps instead of hsp1 and hsp2
         self.hsp1 = hsp1
         self.hsp2 = hsp2
@@ -121,7 +121,7 @@ class Insert(object):
         self.hit_id = self.hsp1.hit_id
         self.query_id = self.hsp1.query_id
         self.seq_id = seq_id
-        self.coverage = coverage
+        self.coverage = cov
         self.start = start
         self.end = end
         self.genes = genes
@@ -287,18 +287,20 @@ class Pipeline(object):
         if seq_id + self._rev_suf in self._blast_results:
             revs = self._blast_results[seq_id + self._rev_suf].hsps
 
-        # Calcuate the coverage
-        coverages = {
-            x.query_id: len(x.query.seq) / len(self.seqs[x.query_id])
-            for x in fwds + revs
-        }
-
         # Apply the coverage filter
         if filter_threshold is not None:
             if not 0 <= filter_threshold <= 1:
                 raise ValueError("Filter value needs to be between 0 and 1")
-            fwds = [x for x in fwds if coverages[x.query_id] > filter_threshold]
-            revs = [x for x in revs if coverages[x.query_id] > filter_threshold]
+            fwds = [
+                x
+                for x in fwds
+                if len(x.query.seq) / len(self.seqs[x.query_id]) > filter_threshold
+            ]
+            revs = [
+                x
+                for x in revs
+                if len(x.query.seq) / len(self.seqs[x.query_id]) > filter_threshold
+            ]
 
         # Match appropriate hits
         matched = []
@@ -317,16 +319,19 @@ class Pipeline(object):
         for fwd, rev in matched:
             start, end = get_endpoints(fwd, rev)
             genes = self.get_genes(start, end, fwd.hit_id, buffer)
-            cov = (coverages[fwd.query_id], coverages[rev.query_id])
+            cov = [
+                len(fwd.query.seq) / len(self.seqs[fwd.query_id]),
+                len(rev.query.seq) / len(self.seqs[rev.query_id]),
+            ]
 
-            new_matched.append(Insert(start, end, seq_id, cov, fwd, rev, genes))
+            new_matched.append(Insert(start, end, seq_id, cov, fwd, rev, genes=genes))
 
         new_unmatched = []
         for seq in unmatched:
             # TODO: maybe move avg_insert_length to object attribute
             start, end = get_endpoints(seq, avg_insert_length=avg_insert_length)
             genes = self.get_genes(start, end, seq.hit_id, buffer)
-            cov = [coverages[seq.query_id]]
+            cov = [len(seq.query.seq) / len(self.seqs[seq.query_id])]
 
             new_unmatched.append(Insert(start, end, seq_id, cov, seq, genes=genes))
 
