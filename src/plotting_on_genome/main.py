@@ -4,10 +4,10 @@ import hashlib
 import json
 import re
 import subprocess
+from copy import deepcopy
 from itertools import product
 from pathlib import Path
 
-from copy import deepcopy
 import pandas as pd
 from BCBio import GFF
 from Bio import Entrez, SearchIO, SeqIO
@@ -182,6 +182,7 @@ class Pipeline(object):
             genome_file = self.work_dir / f"db_{search_hashed}.gbk"
             genome_fasta = genome_file.with_suffix(".fasta")
 
+            # TODO: use diskcache package instead of hashing it yourself
             self._genome = download_genome(search_term, email, retmax, genome_file)
         else:
             genome_file = Path(genome_file)

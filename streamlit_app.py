@@ -15,9 +15,6 @@ import plotting_on_genome as pog
 if "stage" not in st.session_state:
     st.session_state.stage = 0
 
-if "filter_threshold" not in st.session_state:
-    st.session_state.filter_threshold = None
-
 if "insert_types" not in st.session_state:
     st.session_state.insert_types = "both"
 
@@ -116,10 +113,6 @@ def get_main_inputs():
     fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
     rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
 
-    filter_threshold = st.number_input("Filter threshold (optional):", 0.0, 1.0, None)
-    if filter_threshold is not None:
-        st.session_state.filter_threshold = float(filter_threshold)
-
     st.session_state.insert_types = st.selectbox(
         "insert types:", ["both", "matched", "unmatched"]
     )
@@ -146,16 +139,13 @@ def get_main_inputs():
 def show_results():
     option = st.selectbox(
         "plot type:",
-        [
-            "plot inserts",
-            "plot genome",
-            "plot insert dists",
-        ],
+        ["plot inserts", "plot genome", "plot insert dists"],
         None,
     )
     p = st.session_state.pipeline
     insert_types = st.session_state.insert_types
-    filter_threshold = st.session_state.filter_threshold
+
+    filter_threshold = st.slider("Filter threshold:", 0.0, 1.0, 0.7)
 
     if p is not None:
         if option == "plot inserts":

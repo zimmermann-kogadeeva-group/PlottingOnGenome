@@ -20,15 +20,7 @@ def set_feature(feature, **kwargs):
     return new_feature
 
 
-def plot_insert(
-    insert, buffer=4000, col1="#8DDEF7", col2="#CFFCCC", figsize=None, axs=None
-):
-    # Default values for figure size and create the figure
-    if axs is None:
-        figsize = figsize or (10, 8)
-        fig, axs = plt.subplots(2, 1, figsize=figsize)
-    assert len(axs) == 2
-
+def _get_graphic_records_insert(insert, buffer, col1, col2):
     # Create a new graphic object for query sequence
     features = [
         GraphicFeature(
@@ -46,7 +38,6 @@ def plot_insert(
         sequence_length=insert.end - insert.start + 2 * buffer,
         features=features,
     )
-    _ = record_seq.plot(ax=axs[0])
 
     # Create graphic objects for all the genes and CDSes using
     # dna_features_viewer.BiopythonTranslator()
@@ -60,9 +51,35 @@ def plot_insert(
         sequence_length=insert.end - insert.start + 2 * buffer,
         features=features,
     )
-    _ = record_hits.plot(ax=axs[1])
 
-    return axs
+    return record_seq, record_hits
+
+
+def plot_insert(
+    insert,
+    buffer=4000,
+    col1="#8DDEF7",
+    col2="#CFFCCC",
+    figsize=None,
+    axs=None,
+    backend="matplotlib",
+):
+
+    seqs, hits = _get_graphic_records_insert(insert, buffer, col1, col2)
+
+    figsize = figsize or (10, 8)
+
+    if backend == "matplotlib":
+        # Default values for figure size and create the figure
+        if axs is None:
+            fig, axs = plt.subplots(2, 1, figsize=figsize)
+        assert len(axs) == 2
+
+        # Create a new graphic object for query sequence
+        _ = seqs.plot(ax=axs[0])
+        _ = hits.plot(ax=axs[1])
+
+        return axs
 
 
 def _get_contig_label(contig, mapped_ids, show_labels=True):
@@ -75,19 +92,7 @@ def _get_contig_label(contig, mapped_ids, show_labels=True):
         return None
 
 
-def plot_genome(
-    genome,
-    inserts=None,
-    show_labels=True,
-    col1="#8DDEF7",
-    col2="#CFFCCC",
-    figsize=None,
-    ax=None,
-):
-    if ax is None:
-        figsize = figsize or (10, 20)
-        fig, ax = plt.subplots(figsize=figsize)
-    inserts = inserts or []
+def _get_graphic_records_genome(genome, inserts, show_labels, col1, col2):
 
     # Get just the sequences for each NCBI record and order them by size in
     # descending order. 'x.features[0]' to get the whole sequence for a
@@ -138,7 +143,30 @@ def plot_genome(
 
     rec = CircularGraphicRecord(sequence_length=shifts[-1], features=features + hits)
 
-    _ = rec.plot(ax, annotate_inline=False)
+    return rec
+
+
+def plot_genome(
+    genome,
+    inserts=None,
+    show_labels=True,
+    col1="#8DDEF7",
+    col2="#CFFCCC",
+    figsize=None,
+    ax=None,
+    backend="matplotlib",
+):
+    rec = _get_graphic_records_genome(genome, inserts, show_labels, col1, col2)
+
+    figsize = figsize or (10, 20)
+
+    if backend == "matplotlib":
+        if ax is None:
+            fig, ax = plt.subplots(figsize=figsize)
+
+        inserts = inserts or []
+
+        _ = rec.plot(ax, annotate_inline=False)
 
     return ax
 
@@ -161,7 +189,6 @@ def plot_histogram(inserts, axs=None):
 
 
 def plot_dists(inserts, color="steelblue", saturation=0.4, width=1.0, axs=None):
-    print(color)
     # Default values for figure size and create the figure
     if axs is None:
         fig, axs = plt.subplots(1, 2, figsize=(12, 5))
