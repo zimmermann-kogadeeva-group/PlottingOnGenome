@@ -3,14 +3,15 @@
 import hashlib
 import json
 import re
-import subprocess
 from copy import deepcopy
 from itertools import product
 from pathlib import Path
 
 import pandas as pd
 from BCBio import GFF
-from Bio import Entrez, SearchIO, SeqIO
+from Bio import SeqIO
+
+from .helper import download_genome, run_blast
 
 
 def shift_feature(feature, shift=0):
@@ -18,13 +19,6 @@ def shift_feature(feature, shift=0):
     new_feature = deepcopy(feature)
     new_feature.location = feature.location + shift
     return new_feature
-
-
-def correct_hit_id(x):
-    """Helper function to get rid red| or emb| added by BLAST to contig ID"""
-    if "|" in x.id:
-        x.id = x.id.split("|")[1]
-    return x
 
 
 def get_length(fwd, rev):
@@ -50,65 +44,6 @@ def get_endpoints(hsp1, hsp2=None, avg_insert_length=4000):
         start = hsp1.hit_start
         end = hsp1.hit_start + avg_insert_length
         return start, end
-
-
-def download_genome(search_term, email, retmax=100, gbk_file=None):
-    if gbk_file is not None and Path(gbk_file).exists():
-        # Read in the file
-        return SeqIO.to_dict(SeqIO.parse(gbk_file, "genbank"))
-
-    # Otherwise retrieve the records from NCBI
-    else:
-        # Set the email address for NCBI queries
-        Entrez.email = email
-
-        # Get record ids from NCBI
-        with Entrez.esearch(db="nucleotide", term=search_term, retmax=retmax) as handle:
-            res = Entrez.read(handle)
-
-        # Download these records from NCBI rettype="gbwithparts" is used to
-        # download the sequences with record features
-        with Entrez.efetch(
-            db="nucleotide",
-            id=",".join(res["IdList"]),
-            rettype="gbwithparts",
-            retmode="text",
-        ) as handle:
-            data_gb = SeqIO.to_dict(SeqIO.parse(handle, "gb"))
-
-        # Save the file if it doesn't exist
-        if gbk_file is not None and not Path(gbk_file).exists():
-            # Save in genbank format (stores more information about the NCBI records)
-            SeqIO.write(data_gb.values(), gbk_file, "genbank")
-
-    return data_gb
-
-
-def run_blast(seq_file, db_file, blast_output):
-    # make blast database
-    subprocess.run(
-        f"makeblastdb -in {db_file} -parse_seqids -dbtype nucl",
-        shell=True,
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    # align input sequences with query using blastn with default options
-    subprocess.run(
-        f"blastn -query {seq_file} -db {db_file} -out {blast_output} -outfmt 5",
-        shell=True,
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    # Return a dictionary correcting the hit IDs which get an unnecessary
-    # prefix from BLAST
-    return {
-        x.id: x.hit_map(correct_hit_id)
-        for x in SearchIO.parse(blast_output, "blast-xml")
-    }
 
 
 # TODO: use dataclass
@@ -175,10 +110,13 @@ class Pipeline(object):
 
         # Get genome
         if search_term is not None:
-            assert email is not None, "Email is required for NCBI API"
+            if email is None:
+                raise RuntimeError("Email is required for NCBI API")
 
             # Hash the search term to use as filename in cache dir
-            search_hashed = hashlib.sha1(search_term.encode()).hexdigest()
+            search_hashed = hashlib.sha1(
+                (search_term + str(retmax)).encode()
+            ).hexdigest()
             genome_file = self.work_dir / f"db_{search_hashed}.gbk"
             genome_fasta = genome_file.with_suffix(".fasta")
 

@@ -156,6 +156,7 @@ def plot_genome(
     ax=None,
     backend="matplotlib",
 ):
+    inserts = inserts or []
     rec = _get_graphic_records_genome(genome, inserts, show_labels, col1, col2)
 
     figsize = figsize or (10, 20)
@@ -163,8 +164,6 @@ def plot_genome(
     if backend == "matplotlib":
         if ax is None:
             fig, ax = plt.subplots(figsize=figsize)
-
-        inserts = inserts or []
 
         _ = rec.plot(ax, annotate_inline=False)
 
