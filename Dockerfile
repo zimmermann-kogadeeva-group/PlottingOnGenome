@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     zip \
-    software-properties-common \
+    software-properties-common
 
 # Installing pog package
 RUN pip install --no-cache ".[streamlit]"
