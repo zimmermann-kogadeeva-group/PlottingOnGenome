@@ -20,7 +20,10 @@ def set_feature(feature, **kwargs):
     return new_feature
 
 
-def _get_graphic_records_insert(insert, buffer, col1, col2):
+def _get_graphic_records_insert(insert, buffer, col1, col2, feature_types=None):
+    if feature_types is None:
+        feature_types = {gene.type for gene in insert.genes}
+
     # Create a new graphic object for query sequence
     features = [
         GraphicFeature(
@@ -43,7 +46,9 @@ def _get_graphic_records_insert(insert, buffer, col1, col2):
     # dna_features_viewer.BiopythonTranslator()
     conv = BiopythonTranslator()
     conv.default_feature_color = col1
-    features = [conv.translate_feature(x) for x in insert.genes]
+    features = [
+        conv.translate_feature(x) for x in insert.genes if x.type in feature_types
+    ]
 
     # Plot the genes and CDSes in the region of the mapped sequence
     record_hits = GraphicRecord(
@@ -60,12 +65,13 @@ def plot_insert(
     buffer=4000,
     col1="#8DDEF7",
     col2="#CFFCCC",
+    feature_types=None,
     figsize=None,
     axs=None,
     backend="matplotlib",
 ):
 
-    seqs, hits = _get_graphic_records_insert(insert, buffer, col1, col2)
+    seqs, hits = _get_graphic_records_insert(insert, buffer, col1, col2, feature_types)
 
     figsize = figsize or (10, 8)
 

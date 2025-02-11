@@ -149,27 +149,35 @@ def show_results():
 
     if p is not None:
         if option == "plot inserts":
+
+            st.write("Features to dispaly:")
+            ft_checkboxes = {
+                "CDS": st.checkbox("CDS", value=True),
+                "gene": st.checkbox("gene", value=True),
+            }
+            feature_types = [k for k, v in ft_checkboxes.items() if v]
+
             seq_id = st.selectbox("Select sequence id:", p.seq_ids)
 
             inserts = p.get_inserts(seq_id, insert_types, filter_threshold)
 
             if len(inserts):
 
-                st.write(
-                    pd.concat(
-                        [
-                            insert.to_dataframe().assign(insert_idx=idx + 1)
-                            for idx, insert in enumerate(inserts)
-                        ]
-                    ).reset_index(drop=True)
-                )
+                df_features = pd.concat(
+                    [
+                        insert.to_dataframe().assign(insert_idx=idx + 1)
+                        for idx, insert in enumerate(inserts)
+                    ]
+                ).reset_index(drop=True)
+
+                st.write(df_features)
 
                 for idx, insert in enumerate(inserts):
                     fig, axs = plt.subplots(
                         2, 1, figsize=(10, 10), height_ratios=[3, 5]
                     )
                     fig.suptitle(f"Insert {idx+1}")
-                    axs = pog.plot_insert(insert, axs=axs)
+                    axs = pog.plot_insert(insert, axs=axs, feature_types=feature_types)
                     st.pyplot(fig)
                     plt.close()
             else:
