@@ -25,7 +25,7 @@ RUN curl https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.16.0/ncbi-blast
 ENV PATH="${PATH}:/opt/ncbi-blast-2.16.0+/bin"
 
 # Cleaning up
-RUN apt remove --purge curl zip && rm -rf /var/lib/apt/lists/*
+RUN apt remove --purge -y curl zip && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8501
 
