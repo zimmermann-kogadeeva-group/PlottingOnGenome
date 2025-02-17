@@ -9,6 +9,7 @@ build/
 *.log
 
 # Misc
+worktrees/
 notes.md
 .DS_Store
 tags
