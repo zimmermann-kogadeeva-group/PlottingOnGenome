@@ -217,7 +217,7 @@ def show_results():
 
 
 def main():
-    col1, buffer_col, col2 = st.columns((4, 2, 1), vertical_alignment="center")
+    col1, col2 = st.columns((6, 1), gap="large", vertical_alignment="bottom")
     with col1:
         st.title("PlottingOnGenome")
     with col2:
