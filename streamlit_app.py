@@ -215,13 +215,16 @@ def show_results():
 
             plt.close()
 
-        if st.button("Reset"):
-            st.session_state.stage = 0
-            st.rerun()
-
 
 def main():
-    st.title("PlottingOnGenome")
+    col1, buffer_col, col2 = st.columns((4, 2, 1), vertical_alignment="center")
+    with col1:
+        st.title("PlottingOnGenome")
+    with col2:
+        if st.session_state.stage == 1:
+            if st.button("Reset"):
+                st.session_state.stage = 0
+                st.rerun()
 
     if st.session_state.stage == 0:
         get_main_inputs()
