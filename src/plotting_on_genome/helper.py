@@ -26,15 +26,22 @@ def _download_genome(search_term, email, retmax=100):
 
 
 def download_genome(search_term, email, retmax=100, output_path=None):
-    # Check output_path is given
-    if output_path is not None and Path(output_path).exists():
-        # Read in the file
-        data_gb = SeqIO.to_dict(SeqIO.parse(output_path, "genbank"))
 
-    # Otherwise retrieve the records from NCBI
-    else:
+    if output_path is None:
         data_gb = _download_genome(search_term, email, retmax)
-        SeqIO.write(data_gb.values(), output_path, "genbank")
+
+    else:
+        output_path = Path(output_path)
+
+        # Check output_path is given
+        if Path(output_path).exists():
+            # Read in the file
+            data_gb = SeqIO.to_dict(SeqIO.parse(output_path, "genbank"))
+
+        # Otherwise retrieve the records from NCBI
+        else:
+            data_gb = _download_genome(search_term, email, retmax)
+            SeqIO.write(data_gb.values(), output_path, "genbank")
 
     return data_gb
 
@@ -47,6 +54,7 @@ def _correct_hit_id(x):
 
 
 def run_blast(seq_file, db_file, blast_output):
+    # TODO: check how to catch errors from blast
     # make blast database
     subprocess.run(
         f"makeblastdb -in {db_file} -parse_seqids -dbtype nucl",

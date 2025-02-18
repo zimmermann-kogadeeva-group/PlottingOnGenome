@@ -30,36 +30,45 @@ def get_length(fwd, rev):
         return fwd.hit_end - rev.hit_start
 
 
-def get_endpoints(hsp1, hsp2=None, avg_insert_length=4000):
-    # TODO: check seq_len
-    if hsp2 is not None:
-        if hsp1.hit_strand == 1:
-            start = hsp1.hit_start
-            end = hsp2.hit_end
-        else:
-            start = hsp2.hit_start
-            end = hsp1.hit_end
-        return start, end
-    else:
-        start = hsp1.hit_start
-        end = hsp1.hit_start + avg_insert_length
-        return start, end
-
-
-# TODO: use dataclass
 class Insert(object):
-    def __init__(self, start, end, seq_id, cov, hsp1, hsp2=None, genes=None):
+
+    def _get_endpoints(self, hsp1, hsp2=None, avg_insert_length=0):
+        # TODO: check seq_len
+        if hsp2 is not None:
+            if hsp1.hit_strand == 1:
+                start = hsp1.hit_start
+                end = hsp2.hit_end
+            else:
+                start = hsp2.hit_start
+                end = hsp1.hit_end
+            return start, end
+        else:
+            start = hsp1.hit_start
+            end = hsp1.hit_start + avg_insert_length
+            return start, end
+
+    def __init__(
+        self, seq_id, seq1, hsp1, seq2=None, hsp2=None, genome=None, avg_insert_len=4000
+    ):
         # TODO: maybe switch to using a list of hsps instead of hsp1 and hsp2
         self.hsp1 = hsp1
         self.hsp2 = hsp2
+        self.seq1 = seq1
+        self.seq2 = seq2
         self.strand = self.hsp1.hit_strand
         self.hit_id = self.hsp1.hit_id
         self.query_id = self.hsp1.query_id
         self.seq_id = seq_id
-        self.coverage = cov
-        self.start = start
-        self.end = end
-        self.genes = genes
+        self.matched = True if hsp2 is not None else False
+
+        self.start, self.end = self._get_endpoints(hsp1, hsp2, avg_insert_len)
+
+        self._genome = genome
+
+        self.coverage = [
+            len(hsp1.query.seq) / len(seq1),
+            len(hsp2.query.seq) / len(seq2),
+        ]
 
     def __len__(self):
         return self.end - self.start
@@ -78,8 +87,121 @@ class Insert(object):
             ]
         )
 
+    def get_genes(self, buffer=4000):
+        start_ = self.start - buffer
+        end_ = self.end + buffer
 
-class Pipeline(object):
+        return [
+            shift_feature(gene, start_) for gene in self._genome[start_:end_].features
+        ]
+
+
+class InsertsDict(object):
+
+    def _get_genome_file(self, work_dir, search_term, retmax):
+        # Hash the search term to use as filename in cache dir
+        search_hashed = hashlib.sha1((search_term + str(retmax)).encode()).hexdigest()
+        return work_dir / f"db_{search_hashed}.gbk"
+
+    def _get_genome(
+        self, genome_file, genome_fasta, search_term=None, email=None, retmax=None
+    ):
+        # Get genome
+        if search_term is not None:
+            if email is None:
+                raise RuntimeError("Email is required for NCBI API")
+
+            genome = download_genome(search_term, email, retmax, genome_file)
+        else:
+            if genome_file.suffix == ".gff":
+                genome = SeqIO.to_dict(GFF.parse(genome_file))
+            elif genome_file.suffix == ".gbk":
+                genome = SeqIO.to_dict(SeqIO.parse(genome_file, "genbank"))
+            else:
+                raise RuntimeError(
+                    "Wrong format expected either `.gbk` or `.gff` file."
+                )
+
+        # Save in fasta format (only acceptable format for makeblastdb)
+        SeqIO.write(
+            [x for x in genome.values() if x.seq.defined],
+            genome_fasta,
+            "fasta",
+        )
+
+        return genome
+
+    def _get_paired_inserts(self, seq_id):
+        # get all relevant fwd and rev hits from blast
+        fwds, revs = [], []
+        if seq_id + self._fwd_suf in self._blast_results:
+            fwds = self._blast_results[seq_id + self._fwd_suf].hsps
+        if seq_id + self._rev_suf in self._blast_results:
+            revs = self._blast_results[seq_id + self._rev_suf].hsps
+
+        # match appropriate hits
+        matched_idxs = []
+        unmatched_fwd_idxs = set(range(len(fwds)))
+        unmatched_rev_idxs = set(range(len(revs)))
+
+        for (i, fwd), (j, rev) in product(enumerate(fwds), enumerate(revs)):
+            if (
+                fwd.hit_id == rev.hit_id
+                and fwd.hit_strand == -rev.hit_strand
+                and 0 < get_length(fwd, rev) < self._max_insert_len
+            ):
+                matched_idxs.append([i, j])
+                unmatched_fwd_idxs.remove(i)
+                unmatched_rev_idxs.remove(j)
+
+        matched = [
+            Insert(
+                seq_id,
+                self.seqs[fwds[i].query_id],
+                fwds[i],
+                self.seqs[revs[j].query_id],
+                revs[j],
+                genome=self.genome[fwds[i].hit_id],
+            )
+            for i, j in matched_idxs
+        ]
+
+        unmatched_fwd = [
+            Insert(
+                seq_id,
+                self.seqs[fwds[i].query_id],
+                fwds[i],
+                genome=self.genome[fwds[i].hit_id],
+                avg_insert_len=self._avg_insert_len,
+            )
+            for i in unmatched_fwd_idxs
+        ]
+
+        unmatched_rev = [
+            Insert(
+                seq_id,
+                self.seqs[revs[i].query_id],
+                revs[i],
+                genome=self.genome[revs[i].hit_id],
+                avg_insert_len=self._avg_insert_len,
+            )
+            for i in unmatched_rev_idxs
+        ]
+
+        return matched + unmatched_fwd + unmatched_rev
+
+    def _get_single_inserts(self, seq_id):
+        return [
+            Insert(
+                seq_id,
+                self.seqs[x.query_id],
+                x,
+                genome=self.genome[x.hit_id],
+                avg_insert_len=0,  # TODO: check that it makes sense
+            )
+            for x in self._blast_results[seq_id].hsps
+        ]
+
     def __init__(
         self,
         seq_file,
@@ -89,57 +211,38 @@ class Pipeline(object):
         search_term=None,
         email=None,
         retmax=200,
-        fwd_suffix="_F",
-        rev_suffix="_R",
+        fwd_suffix=None,
+        rev_suffix=None,
         blast_clean=True,
+        max_insert_len=10000,
+        avg_insert_len=4000,
         **kwargs,
     ):
-        # Check at genome_file or search_term is specified
-        assert (
-            genome_file is not None or search_term is not None
-        ), "Either genome_file or search_term needs to be given"
 
-        # Populate class attributes
+        # Populate obj attributes
         self.seq_file = seq_file
         self.work_dir = Path(work_dir)
+        self._max_insert_len = max_insert_len
+        self._avg_insert_len = avg_insert_len
+        # If fwd and rev suffixes are None, then inserts are not paired
         self._fwd_suf = fwd_suffix
         self._rev_suf = rev_suffix
 
         # Make sure that specified work
         self.work_dir.mkdir(exist_ok=True, parents=True)
 
-        # Get genome
+        # Check at genome_file or search_term is specified
         if search_term is not None:
-            if email is None:
-                raise RuntimeError("Email is required for NCBI API")
-
-            # Hash the search term to use as filename in cache dir
-            search_hashed = hashlib.sha1(
-                (search_term + str(retmax)).encode()
-            ).hexdigest()
-            genome_file = self.work_dir / f"db_{search_hashed}.gbk"
+            genome_file = self._get_genome_file(self.work_dir, search_term, retmax)
             genome_fasta = genome_file.with_suffix(".fasta")
-
-            # TODO: use diskcache package instead of hashing it yourself
-            self._genome = download_genome(search_term, email, retmax, genome_file)
-        else:
+        elif genome_file is not None:
             genome_file = Path(genome_file)
             genome_fasta = self.work_dir / (genome_file.stem + ".fasta")
+        else:
+            raise ValueError("Either genome_file or search_term needs to be given")
 
-            if genome_file.suffix == ".gff":
-                self._genome = SeqIO.to_dict(GFF.parse(genome_file))
-            elif genome_file.suffix == ".gbk":
-                self._genome = SeqIO.to_dict(SeqIO.parse(genome_file, "genbank"))
-            else:
-                raise RuntimeError(
-                    "Wrong format expected either `.gbk` or `.gff` file."
-                )
-
-        # Save in fasta format (only acceptable format for makeblastdb)
-        SeqIO.write(
-            [x for x in self._genome.values() if x.seq.defined],
-            genome_fasta,
-            "fasta",
+        self._genome = self._get_genome(
+            genome_file, genome_fasta, search_term, email, retmax
         )
 
         # Save the input parameters
@@ -158,15 +261,6 @@ class Pipeline(object):
                 fh,
             )
 
-        self._seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
-
-        self._seq_ids = tuple(
-            {
-                re.sub(f"{self._fwd_suf}$|{self._rev_suf}$", "", x)
-                for x in self.seqs.keys()
-            }
-        )
-
         # Run BLAST and use xml format to save blast output
         self._blast_results = run_blast(
             seq_file,
@@ -178,6 +272,35 @@ class Pipeline(object):
             self._blast_results = {
                 k: v for k, v in self._blast_results.items() if len(v.hits) > 0
             }
+
+        self._seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
+
+        if self._fwd_suf is not None and self._rev_suf is not None:
+            self._seq_ids = tuple(
+                {
+                    re.sub(f"{self._fwd_suf}$|{self._rev_suf}$", "", x)
+                    for x in self.seqs.keys()
+                }
+            )
+
+            self._all_inserts = {
+                seq_id: self._get_paired_inserts(seq_id) for seq_id in self._seq_ids
+            }
+        else:
+            self._seq_ids = set(self.seqs.keys())
+
+            self._all_inserts = {
+                seq_id: self._get_single_inserts(seq_id) for seq_id in self._seq_ids
+            }
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            key = self._seq_ids[key]
+
+        return self._all_inserts[key]
+
+    def __len__(self):
+        return len(self._seq_ids)
 
     @property
     def seqs(self):
@@ -209,80 +332,32 @@ class Pipeline(object):
         seq_id_or_idx,
         insert_types="both",
         filter_threshold=None,
-        insert_max_len=10000,
-        buffer=4000,
-        avg_insert_length=4000,
     ):
         assert insert_types in ("matched", "unmatched", "both")
-        if isinstance(seq_id_or_idx, int):
-            seq_id = self._seq_ids[seq_id_or_idx]
-        else:
-            seq_id = seq_id_or_idx
 
-        # Get all relevant fwd and rev hits from BLAST
-        fwds, revs = [], []
-        if seq_id + self._fwd_suf in self._blast_results:
-            fwds = self._blast_results[seq_id + self._fwd_suf].hsps
-        if seq_id + self._rev_suf in self._blast_results:
-            revs = self._blast_results[seq_id + self._rev_suf].hsps
-
+        inserts = self.__getitem__(seq_id_or_idx)
         # Apply the coverage filter
         if filter_threshold is not None:
             if not 0 <= filter_threshold <= 1:
                 raise ValueError("Filter value needs to be between 0 and 1")
-            fwds = [
+
+            inserts = [
                 x
-                for x in fwds
-                if len(x.query.seq) / len(self.seqs[x.query_id]) > filter_threshold
+                for x in inserts
+                if all([cov > filter_threshold for cov in x.coverage])
             ]
-            revs = [
-                x
-                for x in revs
-                if len(x.query.seq) / len(self.seqs[x.query_id]) > filter_threshold
-            ]
-
-        # Match appropriate hits
-        matched = []
-        unmatched = set(fwds).union(revs)
-        for fwd, rev in product(fwds, revs):
-            if (
-                fwd.hit_id == rev.hit_id
-                and fwd.hit_strand == -rev.hit_strand
-                and 0 < get_length(fwd, rev) < insert_max_len
-            ):
-                matched.append([fwd, rev])
-                unmatched -= {fwd, rev}
-
-        # TODO: improve below
-        new_matched = []
-        for fwd, rev in matched:
-            start, end = get_endpoints(fwd, rev)
-            genes = self.get_genes(start, end, fwd.hit_id, buffer)
-            cov = [
-                len(fwd.query.seq) / len(self.seqs[fwd.query_id]),
-                len(rev.query.seq) / len(self.seqs[rev.query_id]),
-            ]
-
-            new_matched.append(Insert(start, end, seq_id, cov, fwd, rev, genes=genes))
-
-        new_unmatched = []
-        for seq in unmatched:
-            # TODO: maybe move avg_insert_length to object attribute
-            start, end = get_endpoints(seq, avg_insert_length=avg_insert_length)
-            genes = self.get_genes(start, end, seq.hit_id, buffer)
-            cov = [len(seq.query.seq) / len(self.seqs[seq.query_id])]
-
-            new_unmatched.append(Insert(start, end, seq_id, cov, seq, genes=genes))
 
         if insert_types == "matched":
-            return new_matched
+            inserts = [x for x in inserts if x.matched]
         elif insert_types == "unmatched":
-            return new_unmatched
-        else:
-            return new_matched + new_unmatched
+            inserts = [x for x in inserts if not x.matched]
+
+        return inserts
 
     def get_all_inserts(
-        self, insert_types="both", filter_threshold=None, insert_max_len=10000
+        self,
+        insert_types="both",
+        filter_threshold=None,
     ):
         return [
             x
@@ -291,7 +366,6 @@ class Pipeline(object):
                 seq_id,
                 insert_types=insert_types,
                 filter_threshold=filter_threshold,
-                insert_max_len=insert_max_len,
             )
         ]
 
