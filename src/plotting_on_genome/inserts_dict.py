@@ -326,6 +326,27 @@ class InsertsDict(object):
             ),
         )
 
+    def genes_to_dataframe(
+        self,
+        seq_id_or_idx,
+        insert_types="both",
+        filter_threshold=None,
+        buffer=4000,
+    ):
+        inserts = self.get(seq_id_or_idx, insert_types, filter_threshold)
+
+        if len(inserts):
+            df_genes = pd.concat(
+                [
+                    insert.to_dataframe(buffer).assign(
+                        insert_idx=idx + 1, seq_id=insert.seq_id
+                    )
+                    for idx, insert in enumerate(inserts)
+                ]
+            ).reset_index(drop=True)
+
+            return df_genes
+
     def _get_graphic_records_genome(self, inserts, show_labels, col1, col2):
 
         # Get just the sequences for each NCBI record and order them by size in

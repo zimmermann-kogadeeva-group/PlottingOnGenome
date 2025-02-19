@@ -171,19 +171,13 @@ def show_results():
 
             if len(inserts):
 
-                df_features = pd.concat(
-                    [
-                        insert.to_dataframe().assign(insert_idx=idx + 1)
-                        for idx, insert in enumerate(inserts)
-                    ]
-                ).reset_index(drop=True)
-
-                st.write(df_features)
+                df_genes = inserts_all.genes_to_dataframe(
+                    seq_id, insert_types, filter_threshold, buffer
+                )
+                st.write(df_genes)
 
                 for idx, insert in enumerate(inserts):
-                    fig, axs = plt.subplots(
-                        2, 1, figsize=(10, 10), height_ratios=[3, 5]
-                    )
+                    fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[3, 5])
                     fig.suptitle(f"Insert {idx+1}")
                     axs = insert.plot(
                         buffer=buffer, axs=axs, feature_types=feature_types

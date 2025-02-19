@@ -7,6 +7,7 @@ from dna_features_viewer import (
 )
 
 from .helper import shift_feature
+from .plotting import fig_axvline
 
 
 class Insert(object):
@@ -50,13 +51,25 @@ class Insert(object):
         self.coverage = min(x for x in (self.cov1, self.cov2) if x is not None)
 
     def __len__(self):
-        return self.end - self.start
+        return self.end - self.start + 1
 
     def get_genes(self, buffer=4000):
         start = self.start - buffer
         end = self.end + buffer
 
         return [shift_feature(gene, start) for gene in self._genome[start:end].features]
+
+    def _get_gene_coverage(self, gene_start, gene_end):
+        if gene_start >= self.start and gene_end <= self.end:
+            return 1.0
+        elif gene_end < self.start or gene_start > self.end:
+            return 0.0
+        elif gene_start < self.start and self.start < gene_end < self.end:
+            return (gene_end - self.start + 1) / (gene_end - gene_start + 1)
+        elif gene_end > self.end and self.start < gene_start < self.end:
+            return (self.end - gene_start + 1) / (gene_end - gene_start + 1)
+        else:
+            raise RuntimeError("_get_gene_coverage issue")
 
     def to_dataframe(self, buffer=4000):
         return pd.DataFrame(
@@ -66,6 +79,9 @@ class Insert(object):
                     "end": gene.location.end,
                     "strand": gene.location.strand,
                     "type": gene.type,
+                    "coverage": self._get_gene_coverage(
+                        gene.location.start, gene.location.end
+                    ),
                     **gene.qualifiers,
                 }
                 for gene in self.get_genes(buffer)
@@ -134,6 +150,9 @@ class Insert(object):
             # Create a new graphic object for query sequence
             _ = seqs.plot(ax=axs[0])
             _ = hits.plot(ax=axs[1])
+
+            fig_axvline(axs, self.start)
+            fig_axvline(axs, self.end)
 
             return axs
         else:
