@@ -292,7 +292,7 @@ class InsertsDict(object):
 
         return inserts
 
-    def filter(
+    def get_all(
         self,
         insert_types="both",
         filter_threshold=None,
@@ -310,7 +310,7 @@ class InsertsDict(object):
     def to_dataframe(self, insert_types="both", filter_threshold=None):
         return pd.DataFrame(
             [
-                (seq_id, x.hit_id, x.start, x.end, x.strand, len(x))
+                (seq_id, x.hit_id, x.start, x.end, x.strand, len(x), x.coverage)
                 for seq_id in self.seq_ids
                 for x in self.get(
                     seq_id, insert_types=insert_types, filter_threshold=filter_threshold
@@ -323,6 +323,7 @@ class InsertsDict(object):
                 "insert_end",
                 "insert_strand",
                 "insert_length",
+                "insert_coverage",
             ),
         )
 

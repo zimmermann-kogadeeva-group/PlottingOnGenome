@@ -148,6 +148,7 @@ def show_results():
     filter_threshold = st.slider("Filter threshold:", 0.0, 1.0, 0.7)
 
     if inserts_all is not None:
+
         if option == "plot inserts":
 
             buffer = st.slider(
@@ -191,7 +192,7 @@ def show_results():
             labels = st.toggle("Labels")
             inserts = []
             if st.toggle("Plot inserts", True):
-                inserts = inserts_all.filter(insert_types, filter_threshold)
+                inserts = inserts_all.get_all(insert_types, filter_threshold)
 
             st.write(inserts_all.to_dataframe(insert_types, filter_threshold))
 
@@ -204,7 +205,7 @@ def show_results():
             plot_type = st.radio(
                 "Plot type:", ["histogram", "violinplot+boxplot+stripplot"]
             )
-            inserts = inserts_all.filter(insert_types, filter_threshold)
+            inserts = inserts_all.get_all(insert_types, filter_threshold)
 
             if plot_type == "histogram":
                 fig, axs = plt.subplots(1, 2, figsize=(12, 5))
