@@ -3,25 +3,23 @@
 import hashlib
 import json
 import re
-from copy import deepcopy
-from itertools import product
+from itertools import accumulate, product
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from BCBio import GFF
 from Bio import SeqIO
+from dna_features_viewer import (
+    CircularGraphicRecord,
+    GraphicFeature,
+)
 
-from .helper import download_genome, run_blast
-
-
-def shift_feature(feature, shift=0):
-    """Helper function to shift a Biopython feature without changing the original"""
-    new_feature = deepcopy(feature)
-    new_feature.location = feature.location + shift
-    return new_feature
+from .helper import download_genome, run_blast, shift_feature
+from .insert import Insert
 
 
-def get_length(fwd, rev):
+def _get_length(fwd, rev):
     """Helper function to calculate thee length of a potential insert before
     creating instantiating Insert class"""
     if fwd.hit_strand == +1:
@@ -30,70 +28,14 @@ def get_length(fwd, rev):
         return fwd.hit_end - rev.hit_start
 
 
-class Insert(object):
-
-    def _get_endpoints(self, hsp1, hsp2=None, avg_insert_length=0):
-        # TODO: check seq_len
-        if hsp2 is not None:
-            if hsp1.hit_strand == 1:
-                start = hsp1.hit_start
-                end = hsp2.hit_end
-            else:
-                start = hsp2.hit_start
-                end = hsp1.hit_end
-            return start, end
+def _get_contig_label(contig, mapped_ids, show_labels=True):
+    if show_labels:
+        if mapped_ids and contig.id in mapped_ids:
+            return contig.id
         else:
-            start = hsp1.hit_start
-            end = hsp1.hit_start + avg_insert_length
-            return start, end
-
-    def __init__(
-        self, seq_id, seq1, hsp1, seq2=None, hsp2=None, genome=None, avg_insert_len=4000
-    ):
-        # TODO: maybe switch to using a list of hsps instead of hsp1 and hsp2
-        self.hsp1 = hsp1
-        self.hsp2 = hsp2
-        self.seq1 = seq1
-        self.seq2 = seq2
-        self.strand = self.hsp1.hit_strand
-        self.hit_id = self.hsp1.hit_id
-        self.query_id = self.hsp1.query_id
-        self.seq_id = seq_id
-        self.matched = True if hsp2 is not None else False
-
-        self.start, self.end = self._get_endpoints(hsp1, hsp2, avg_insert_len)
-
-        self._genome = genome
-
-        self.coverage = [
-            len(hsp1.query.seq) / len(seq1),
-            len(hsp2.query.seq) / len(seq2),
-        ]
-
-    def __len__(self):
-        return self.end - self.start
-
-    def to_dataframe(self):
-        return pd.DataFrame(
-            [
-                {
-                    "start": gene.location.start,
-                    "end": gene.location.end,
-                    "strand": gene.location.strand,
-                    "type": gene.type,
-                    **gene.qualifiers,
-                }
-                for gene in self.genes
-            ]
-        )
-
-    def get_genes(self, buffer=4000):
-        start_ = self.start - buffer
-        end_ = self.end + buffer
-
-        return [
-            shift_feature(gene, start_) for gene in self._genome[start_:end_].features
-        ]
+            return None
+    else:
+        return None
 
 
 class InsertsDict(object):
@@ -148,11 +90,11 @@ class InsertsDict(object):
             if (
                 fwd.hit_id == rev.hit_id
                 and fwd.hit_strand == -rev.hit_strand
-                and 0 < get_length(fwd, rev) < self._max_insert_len
+                and 0 < _get_length(fwd, rev) < self._max_insert_len
             ):
                 matched_idxs.append([i, j])
-                unmatched_fwd_idxs.remove(i)
-                unmatched_rev_idxs.remove(j)
+                unmatched_fwd_idxs.discard(i)
+                unmatched_rev_idxs.discard(j)
 
         matched = [
             Insert(
@@ -327,7 +269,7 @@ class InsertsDict(object):
             for gene in self._genome[hit_id][start_:end_].features
         ]
 
-    def get_inserts(
+    def get(
         self,
         seq_id_or_idx,
         insert_types="both",
@@ -341,11 +283,7 @@ class InsertsDict(object):
             if not 0 <= filter_threshold <= 1:
                 raise ValueError("Filter value needs to be between 0 and 1")
 
-            inserts = [
-                x
-                for x in inserts
-                if all([cov > filter_threshold for cov in x.coverage])
-            ]
+            inserts = [x for x in inserts if x.coverage > filter_threshold]
 
         if insert_types == "matched":
             inserts = [x for x in inserts if x.matched]
@@ -354,7 +292,7 @@ class InsertsDict(object):
 
         return inserts
 
-    def get_all_inserts(
+    def filter(
         self,
         insert_types="both",
         filter_threshold=None,
@@ -362,7 +300,7 @@ class InsertsDict(object):
         return [
             x
             for seq_id in self.seq_ids
-            for x in self.get_inserts(
+            for x in self.get(
                 seq_id,
                 insert_types=insert_types,
                 filter_threshold=filter_threshold,
@@ -374,7 +312,7 @@ class InsertsDict(object):
             [
                 (seq_id, x.hit_id, x.start, x.end, x.strand, len(x))
                 for seq_id in self.seq_ids
-                for x in self.get_inserts(
+                for x in self.get(
                     seq_id, insert_types=insert_types, filter_threshold=filter_threshold
                 )
             ],
@@ -387,3 +325,83 @@ class InsertsDict(object):
                 "insert_length",
             ),
         )
+
+    def _get_graphic_records_genome(self, inserts, show_labels, col1, col2):
+
+        # Get just the sequences for each NCBI record and order them by size in
+        # descending order. 'x.features[0]' to get the whole sequence for a
+        # given NCBI record. Other features are specific genes, cfs, etc.
+        db_seqs = sorted(
+            [x for x in self._genome.values() if x.seq.defined],
+            key=lambda x: len(x),
+            reverse=True,
+        )
+
+        # Get the shifts needed to plot all the NCBI records in a continuous line
+        shifts = list(accumulate([0] + [len(x) for x in db_seqs]))
+
+        # Get IDs of NCBI records that were mapped to. Used to check where to
+        # add labels if option is set.
+        mapped_ids = {x.hit_id for x in inserts}
+
+        # Make plots of NCBI records and label only the ones that were mapped
+        # to. Using BiopythonTranslator() didn't allow for control of labels,
+        # hence we are just using GraphicFeature class
+        features = [
+            (
+                GraphicFeature(
+                    start=shifts[i],
+                    end=shifts[i + 1],
+                    label=_get_contig_label(x, mapped_ids, show_labels),
+                    color=col1,
+                )
+            )
+            for i, x in enumerate(db_seqs)
+        ]
+
+        # Get IDs of NCBI records in the order as in the figure. Used to make
+        # sure locations are shifted correctly.
+        ids = [x.id for x in db_seqs]
+
+        # Add plots of the query sequences plotted on top of the plots of NCBI records
+        hits = [
+            GraphicFeature(
+                start=insert.start + shifts[ids.index(insert.hit_id)] + 1,
+                end=insert.end + shifts[ids.index(insert.hit_id)],
+                strand=insert.strand,
+                color=col2,
+                label=None,
+            )
+            for insert in inserts
+        ]
+
+        rec = CircularGraphicRecord(
+            sequence_length=shifts[-1], features=features + hits
+        )
+
+        return rec
+
+    def plot(
+        self,
+        inserts=None,
+        show_labels=True,
+        col1="#8DDEF7",
+        col2="#CFFCCC",
+        figsize=None,
+        ax=None,
+        backend="matplotlib",
+    ):
+        inserts = inserts or []
+        rec = self._get_graphic_records_genome(inserts, show_labels, col1, col2)
+
+        figsize = figsize or (10, 20)
+
+        if backend == "matplotlib":
+            if ax is None:
+                fig, ax = plt.subplots(figsize=figsize)
+
+            _ = rec.plot(ax, annotate_inline=False)
+        else:
+            raise NotImplementedError
+
+        return ax

@@ -16,11 +16,9 @@ dependencies = [
     "bcbio-gff",
     "dna_features_viewer",
     "matplotlib",
-    "numpy",
     "pandas",
     "platformdirs",
     "seaborn",
-    "tqdm"
 ]
 
 [project.optional-dependencies]

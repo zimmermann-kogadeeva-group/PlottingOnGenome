@@ -1,7 +1,15 @@
 import subprocess
+from copy import deepcopy
 from pathlib import Path
 
 from Bio import Entrez, SearchIO, SeqIO
+
+
+def shift_feature(feature, shift=0):
+    """Helper function to shift a Biopython feature without changing the original"""
+    new_feature = deepcopy(feature)
+    new_feature.location = feature.location + shift
+    return new_feature
 
 
 def _download_genome(search_term, email, retmax=100):

@@ -59,7 +59,7 @@ def run_pipeline(
                 fh.write(seq.getvalue())
                 fh.write(b"\n")
 
-        res = pog.Pipeline(
+        res = pog.InsertsDict(
             seq_file=seq_path,
             work_dir=dirpath,
             genome_file=genome_path,
@@ -142,13 +142,21 @@ def show_results():
         ["plot inserts", "plot genome", "plot insert dists"],
         None,
     )
-    p = st.session_state.pipeline
+    inserts_all = st.session_state.pipeline
     insert_types = st.session_state.insert_types
 
     filter_threshold = st.slider("Filter threshold:", 0.0, 1.0, 0.7)
 
-    if p is not None:
+    if inserts_all is not None:
         if option == "plot inserts":
+
+            buffer = st.slider(
+                "View window size:",
+                min_value=0,
+                max_value=10000,
+                value=4000,
+                help="Number of bases either side of the insert",
+            )
 
             st.write("Features to dispaly:")
             ft_checkboxes = {
@@ -157,9 +165,9 @@ def show_results():
             }
             feature_types = [k for k, v in ft_checkboxes.items() if v]
 
-            seq_id = st.selectbox("Select sequence id:", p.seq_ids)
+            seq_id = st.selectbox("Select sequence id:", inserts_all.seq_ids)
 
-            inserts = p.get_inserts(seq_id, insert_types, filter_threshold)
+            inserts = inserts_all.get(seq_id, insert_types, filter_threshold)
 
             if len(inserts):
 
@@ -177,7 +185,9 @@ def show_results():
                         2, 1, figsize=(10, 10), height_ratios=[3, 5]
                     )
                     fig.suptitle(f"Insert {idx+1}")
-                    axs = pog.plot_insert(insert, axs=axs, feature_types=feature_types)
+                    axs = insert.plot(
+                        buffer=buffer, axs=axs, feature_types=feature_types
+                    )
                     st.pyplot(fig)
                     plt.close()
             else:
@@ -187,12 +197,12 @@ def show_results():
             labels = st.toggle("Labels")
             inserts = []
             if st.toggle("Plot inserts", True):
-                inserts = p.get_all_inserts(insert_types, filter_threshold)
+                inserts = inserts_all.filter(insert_types, filter_threshold)
 
-            st.write(p.to_dataframe(insert_types, filter_threshold))
+            st.write(inserts_all.to_dataframe(insert_types, filter_threshold))
 
             fig, ax = plt.subplots(figsize=(10, 10 * (1 + 2 * labels)))
-            ax = pog.plot_genome(p.genome, inserts, show_labels=labels, ax=ax)
+            ax = inserts_all.plot(inserts, show_labels=labels, ax=ax)
             st.pyplot(fig, use_container_width=True)
             plt.close()
 
@@ -200,16 +210,18 @@ def show_results():
             plot_type = st.radio(
                 "Plot type:", ["histogram", "violinplot+boxplot+stripplot"]
             )
-            inserts = p.get_all_inserts(insert_types, filter_threshold)
+            inserts = inserts_all.filter(insert_types, filter_threshold)
 
             if plot_type == "histogram":
                 fig, axs = plt.subplots(1, 2, figsize=(12, 5))
                 pog.plot_histogram(inserts, axs=axs)
                 st.pyplot(fig)
+
             elif plot_type == "violinplot+boxplot+stripplot":
                 fig, axs = plt.subplots(1, 2, figsize=(12, 5))
                 pog.plot_dists(inserts, axs=axs)
                 st.pyplot(fig)
+
             else:
                 raise ValueError("Incorrect plot type")
 
