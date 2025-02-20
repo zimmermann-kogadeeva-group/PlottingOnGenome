@@ -99,35 +99,38 @@ class InsertsDict(object):
         matched = [
             Insert(
                 seq_id,
+                idx,
                 self.seqs[fwds[i].query_id],
                 fwds[i],
                 self.seqs[revs[j].query_id],
                 revs[j],
                 genome=self.genome[fwds[i].hit_id],
             )
-            for i, j in matched_idxs
+            for idx, (i, j) in enumerate(matched_idxs)
         ]
 
         unmatched_fwd = [
             Insert(
                 seq_id,
+                idx + len(matched),
                 self.seqs[fwds[i].query_id],
                 fwds[i],
                 genome=self.genome[fwds[i].hit_id],
                 avg_insert_len=self._avg_insert_len,
             )
-            for i in unmatched_fwd_idxs
+            for idx, i in enumerate(unmatched_fwd_idxs)
         ]
 
         unmatched_rev = [
             Insert(
                 seq_id,
+                idx + len(matched) + len(unmatched_fwd),
                 self.seqs[revs[i].query_id],
                 revs[i],
                 genome=self.genome[revs[i].hit_id],
                 avg_insert_len=self._avg_insert_len,
             )
-            for i in unmatched_rev_idxs
+            for idx, i in enumerate(unmatched_rev_idxs)
         ]
 
         return matched + unmatched_fwd + unmatched_rev
@@ -136,12 +139,13 @@ class InsertsDict(object):
         return [
             Insert(
                 seq_id,
+                idx,
                 self.seqs[x.query_id],
                 x,
                 genome=self.genome[x.hit_id],
                 avg_insert_len=0,  # TODO: check that it makes sense
             )
-            for x in self._blast_results[seq_id].hsps
+            for idx, x in enumerate(self._blast_results[seq_id].hsps)
         ]
 
     def __init__(
@@ -237,9 +241,20 @@ class InsertsDict(object):
 
     def __getitem__(self, key):
         if isinstance(key, int):
-            key = self._seq_ids[key]
+            return self._all_inserts[self._seq_ids[key]]
 
-        return self._all_inserts[key]
+        elif isinstance(key, str):
+            return self._all_inserts[key]
+
+        elif isinstance(key, (tuple, list)):
+            return [insert for k in key for insert in self.__getitem__(k)]
+
+        elif isinstance(key, slice):
+            return self.__getitem__(
+                [ii for ii in range(*key.indices(len(self.seq_ids)))]
+            )
+        else:
+            raise TypeError(f"Invalid argument type: {type(key)}")
 
     def __len__(self):
         return len(self._seq_ids)
@@ -271,11 +286,12 @@ class InsertsDict(object):
 
     def get(
         self,
-        seq_id_or_idx,
+        seq_id_or_idx=None,
         insert_types="both",
         filter_threshold=None,
     ):
         assert insert_types in ("matched", "unmatched", "both")
+        seq_id_or_idx = seq_id_or_idx or self.seq_ids
 
         inserts = self.__getitem__(seq_id_or_idx)
         # Apply the coverage filter
@@ -292,33 +308,27 @@ class InsertsDict(object):
 
         return inserts
 
-    def get_all(
-        self,
-        insert_types="both",
-        filter_threshold=None,
-    ):
-        return [
-            x
-            for seq_id in self.seq_ids
-            for x in self.get(
-                seq_id,
-                insert_types=insert_types,
-                filter_threshold=filter_threshold,
-            )
-        ]
-
     def to_dataframe(self, insert_types="both", filter_threshold=None):
         return pd.DataFrame(
             [
-                (seq_id, x.hit_id, x.start, x.end, x.strand, len(x), x.coverage)
-                for seq_id in self.seq_ids
+                (
+                    x.seq_id,
+                    x.hit_id,
+                    x.idx,
+                    x.start,
+                    x.end,
+                    x.strand,
+                    len(x),
+                    x.coverage,
+                )
                 for x in self.get(
-                    seq_id, insert_types=insert_types, filter_threshold=filter_threshold
+                    insert_types=insert_types, filter_threshold=filter_threshold
                 )
             ],
             columns=(
                 "seq_id",
                 "NCBI_accession_number",
+                "insert_idx",
                 "insert_start",
                 "insert_end",
                 "insert_strand",
@@ -329,7 +339,7 @@ class InsertsDict(object):
 
     def genes_to_dataframe(
         self,
-        seq_id_or_idx,
+        seq_id_or_idx=None,
         insert_types="both",
         filter_threshold=None,
         buffer=4000,
@@ -340,9 +350,9 @@ class InsertsDict(object):
             df_genes = pd.concat(
                 [
                     insert.to_dataframe(buffer).assign(
-                        insert_idx=idx + 1, seq_id=insert.seq_id
+                        insert_idx=insert.idx, seq_id=insert.seq_id
                     )
-                    for idx, insert in enumerate(inserts)
+                    for insert in inserts
                 ]
             ).reset_index(drop=True)
 

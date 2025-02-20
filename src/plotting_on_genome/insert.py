@@ -28,7 +28,15 @@ class Insert(object):
             return start, end
 
     def __init__(
-        self, seq_id, seq1, hsp1, seq2=None, hsp2=None, genome=None, avg_insert_len=4000
+        self,
+        seq_id,
+        idx,
+        seq1,
+        hsp1,
+        seq2=None,
+        hsp2=None,
+        genome=None,
+        avg_insert_len=4000,
     ):
         # TODO: maybe switch to using a list of hsps instead of hsp1 and hsp2
         self.hsp1 = hsp1
@@ -39,6 +47,7 @@ class Insert(object):
         self.hit_id = self.hsp1.hit_id
         self.query_id = self.hsp1.query_id
         self.seq_id = seq_id
+        self.idx = idx
         self.matched = True if hsp2 is not None else False
 
         self.start, self.end = self._get_endpoints(hsp1, hsp2, avg_insert_len)
@@ -49,6 +58,15 @@ class Insert(object):
         self.cov2 = len(hsp2.query.seq) / len(seq2) if hsp2 is not None else None
 
         self.coverage = min(x for x in (self.cov1, self.cov2) if x is not None)
+
+    def __repr__(self):
+        return (
+            "Insert("
+            f"seq_id={self.seq_id}, "
+            f"start={self.start}, "
+            f"end={self.end}, "
+            f"hit_id={self.hit_id})"
+        )
 
     def __len__(self):
         return self.end - self.start + 1
@@ -64,12 +82,16 @@ class Insert(object):
             return 1.0
         elif gene_end < self.start or gene_start > self.end:
             return 0.0
-        elif gene_start < self.start and self.start < gene_end < self.end:
+        elif gene_start < self.start and self.start <= gene_end <= self.end:
             return (gene_end - self.start + 1) / (gene_end - gene_start + 1)
-        elif gene_end > self.end and self.start < gene_start < self.end:
+        elif gene_end > self.end and self.start <= gene_start <= self.end:
             return (self.end - gene_start + 1) / (gene_end - gene_start + 1)
         else:
-            raise RuntimeError("_get_gene_coverage issue")
+            raise RuntimeError(
+                f"Unknown gene case: "
+                f"{gene_start=}, {gene_end=}, "
+                f"insert_start={self.start}, insert_end={self.end}"
+            )
 
     def to_dataframe(self, buffer=4000):
         return pd.DataFrame(

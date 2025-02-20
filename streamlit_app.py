@@ -136,28 +136,54 @@ def get_main_inputs():
     )
 
 
+@st.cache_data
+def convert_df(df, **kwargs):
+    return df.to_csv(**kwargs).encode("utf-8")
+
+
 def show_results():
-    option = st.selectbox(
-        "plot type:",
-        ["plot inserts", "plot genome", "plot insert dists"],
-        None,
-    )
     inserts_all = st.session_state.pipeline
     insert_types = st.session_state.insert_types
 
     filter_threshold = st.slider("Filter threshold:", 0.0, 1.0, 0.7)
 
+    buffer = st.slider(
+        "View window size:",
+        min_value=0,
+        max_value=10000,
+        value=4000,
+        help="Number of bases either side of the insert",
+    )
+    params = dict(insert_types=insert_types, filter_threshold=filter_threshold)
+
+    df_inserts = inserts_all.to_dataframe(**params)
+    df_genes = inserts_all.genes_to_dataframe(**params, buffer=buffer)
+
+    st.download_button(
+        label="Download all inserts as CSV",
+        data=df_inserts.pipe(convert_df, index=False),
+        file_name="inserts.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download all genes as CSV",
+        data=df_genes.pipe(convert_df, index=False),
+        file_name="genes.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+    option = st.selectbox(
+        "plot type:",
+        ["plot inserts", "plot genome", "plot insert dists"],
+        None,
+    )
+
     if inserts_all is not None:
 
         if option == "plot inserts":
-
-            buffer = st.slider(
-                "View window size:",
-                min_value=0,
-                max_value=10000,
-                value=4000,
-                help="Number of bases either side of the insert",
-            )
 
             st.write("Features to dispaly:")
             ft_checkboxes = {
@@ -168,18 +194,15 @@ def show_results():
 
             seq_id = st.selectbox("Select sequence id:", inserts_all.seq_ids)
 
-            inserts = inserts_all.get(seq_id, insert_types, filter_threshold)
+            inserts = inserts_all.get(seq_id, **params)
 
             if len(inserts):
 
-                df_genes = inserts_all.genes_to_dataframe(
-                    seq_id, insert_types, filter_threshold, buffer
-                )
-                st.write(df_genes)
+                st.write(df_genes.query("seq_id == @seq_id"))
 
-                for idx, insert in enumerate(inserts):
+                for insert in inserts:
                     fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[3, 5])
-                    fig.suptitle(f"Insert {idx+1}")
+                    fig.suptitle(f"Insert {insert.idx}")
                     axs = insert.plot(
                         buffer=buffer, axs=axs, feature_types=feature_types
                     )
@@ -192,9 +215,9 @@ def show_results():
             labels = st.toggle("Labels")
             inserts = []
             if st.toggle("Plot inserts", True):
-                inserts = inserts_all.get_all(insert_types, filter_threshold)
+                inserts = inserts_all.get(**params)
 
-            st.write(inserts_all.to_dataframe(insert_types, filter_threshold))
+            st.write(df_inserts)
 
             fig, ax = plt.subplots(figsize=(10, 10 * (1 + 2 * labels)))
             ax = inserts_all.plot(inserts, show_labels=labels, ax=ax)
@@ -205,7 +228,7 @@ def show_results():
             plot_type = st.radio(
                 "Plot type:", ["histogram", "violinplot+boxplot+stripplot"]
             )
-            inserts = inserts_all.get_all(insert_types, filter_threshold)
+            inserts = inserts_all.get(**params)
 
             if plot_type == "histogram":
                 fig, axs = plt.subplots(1, 2, figsize=(12, 5))
