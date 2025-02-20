@@ -419,18 +419,19 @@ class InsertsDict(object):
         show_labels=True,
         col1="#8DDEF7",
         col2="#CFFCCC",
-        figsize=None,
         ax=None,
         backend="matplotlib",
+        **kwargs,
     ):
+        if "figsize" not in kwargs:
+            kwargs["figsize"] = (10, 8)
+
         inserts = inserts or []
         rec = self._get_graphic_records_genome(inserts, show_labels, col1, col2)
 
-        figsize = figsize or (10, 20)
-
         if backend == "matplotlib":
             if ax is None:
-                fig, ax = plt.subplots(figsize=figsize)
+                fig, ax = plt.subplots(1, 1, **kwargs)
 
             _ = rec.plot(ax, annotate_inline=False)
         else:
