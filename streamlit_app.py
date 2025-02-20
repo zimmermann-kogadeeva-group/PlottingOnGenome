@@ -192,6 +192,8 @@ def show_results():
             }
             feature_types = [k for k, v in ft_checkboxes.items() if v]
 
+            colorbar = st.toggle("Color genes by overlap")
+
             seq_id = st.selectbox("Select sequence id:", inserts_all.seq_ids)
 
             inserts = inserts_all.get(seq_id, **params)
@@ -204,7 +206,10 @@ def show_results():
                     fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[3, 5])
                     fig.suptitle(f"Insert {insert.idx}")
                     axs = insert.plot(
-                        buffer=buffer, axs=axs, feature_types=feature_types
+                        buffer=buffer,
+                        axs=axs,
+                        feature_types=feature_types,
+                        colorbar=colorbar,
                     )
                     st.pyplot(fig)
                     plt.close()

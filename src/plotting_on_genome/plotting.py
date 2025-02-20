@@ -31,10 +31,13 @@ def fig_axvline(axes, value, ls="--", color="gray", **kwargs):
     fig.lines.append(line)
 
 
-def plot_histogram(inserts, axs=None):
+def plot_histogram(inserts, axs=None, **kwargs):
+    if "figsize" not in kwargs:
+        kwargs["figsize"] = (12, 5)
+
     # Default values for figure size and create the figure
     if axs is None:
-        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+        fig, axs = plt.subplots(1, 2, **kwargs)
     assert len(axs) == 2
 
     insert_lengths = [len(x) for x in inserts]
@@ -48,10 +51,15 @@ def plot_histogram(inserts, axs=None):
         axs[1].set(title="Coverage")
 
 
-def plot_dists(inserts, color="steelblue", saturation=0.4, width=1.0, axs=None):
+def plot_dists(
+    inserts, color="steelblue", saturation=0.4, width=1.0, axs=None, **kwargs
+):
+    if "figsize" not in kwargs:
+        kwargs["figsize"] = (12, 5)
+
     # Default values for figure size and create the figure
     if axs is None:
-        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+        fig, axs = plt.subplots(1, 2, **kwargs)
     assert len(axs) == 2
 
     insert_lengths = [len(x) for x in inserts]

@@ -5,6 +5,7 @@ from dna_features_viewer import (
     GraphicFeature,
     GraphicRecord,
 )
+from matplotlib.colors import LinearSegmentedColormap
 
 from .helper import shift_feature
 from .plotting import fig_axvline
@@ -77,7 +78,10 @@ class Insert(object):
 
         return [shift_feature(gene, start) for gene in self._genome[start:end].features]
 
-    def _get_gene_coverage(self, gene_start, gene_end):
+    def _get_gene_coverage(self, gene):
+        gene_start = gene.location.start
+        gene_end = gene.location.end
+
         if gene_start >= self.start and gene_end <= self.end:
             return 1.0
         elif gene_end < self.start or gene_start > self.end:
@@ -101,16 +105,21 @@ class Insert(object):
                     "end": gene.location.end,
                     "strand": gene.location.strand,
                     "type": gene.type,
-                    "coverage": self._get_gene_coverage(
-                        gene.location.start, gene.location.end
-                    ),
+                    "coverage": self._get_gene_coverage(gene),
                     **gene.qualifiers,
                 }
                 for gene in self.get_genes(buffer)
             ]
         )
 
-    def _get_graphic_records_insert(self, buffer, col1, col2, feature_types=None):
+    def _get_graphic_records_insert(
+        self,
+        buffer,
+        col1,
+        col2,
+        feature_types=None,
+        colorbar=False,
+    ):
         genes = self.get_genes(buffer)
         if feature_types is None:
             feature_types = {x.type for x in genes}
@@ -135,6 +144,12 @@ class Insert(object):
 
         # Create graphic objects for all the genes and CDSes using
         # dna_features_viewer.BiopythonTranslator()
+
+        if colorbar:
+            cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
+            for i, gene in enumerate(genes):
+                genes[i].qualifiers["color"] = cmap(self._get_gene_coverage(gene))
+
         conv = BiopythonTranslator()
         conv.default_feature_color = col1
         features = [conv.translate_feature(x) for x in genes if x.type in feature_types]
@@ -154,19 +169,22 @@ class Insert(object):
         col1="#8DDEF7",
         col2="#CFFCCC",
         feature_types=None,
-        figsize=None,
+        colorbar=False,
         axs=None,
         backend="matplotlib",
+        **kwargs,
     ):
 
-        seqs, hits = self._get_graphic_records_insert(buffer, col1, col2, feature_types)
-
-        figsize = figsize or (10, 8)
+        seqs, hits = self._get_graphic_records_insert(
+            buffer, col1, col2, feature_types, colorbar
+        )
+        if "figsize" not in kwargs:
+            kwargs["figsize"] = (10, 8)
 
         if backend == "matplotlib":
             # Default values for figure size and create the figure
             if axs is None:
-                fig, axs = plt.subplots(2, 1, figsize=figsize)
+                fig, axs = plt.subplots(2, 1, **kwargs)
             assert len(axs) == 2
 
             # Create a new graphic object for query sequence
