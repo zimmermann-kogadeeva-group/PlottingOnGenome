@@ -287,11 +287,12 @@ class InsertsDict(object):
     def get(
         self,
         seq_id_or_idx=None,
-        insert_types="both",
+        insert_type="both",
         filter_threshold=None,
     ):
-        assert insert_types in ("matched", "unmatched", "both")
-        seq_id_or_idx = seq_id_or_idx or self.seq_ids
+        assert insert_type in ("matched", "unmatched", "both")
+        if seq_id_or_idx is None:
+            seq_id_or_idx = self.seq_ids
 
         inserts = self.__getitem__(seq_id_or_idx)
         # Apply the coverage filter
@@ -301,14 +302,14 @@ class InsertsDict(object):
 
             inserts = [x for x in inserts if x.coverage > filter_threshold]
 
-        if insert_types == "matched":
+        if insert_type == "matched":
             inserts = [x for x in inserts if x.matched]
-        elif insert_types == "unmatched":
+        elif insert_type == "unmatched":
             inserts = [x for x in inserts if not x.matched]
 
         return inserts
 
-    def to_dataframe(self, insert_types="both", filter_threshold=None):
+    def to_dataframe(self, insert_type="both", filter_threshold=None):
         return pd.DataFrame(
             [
                 (
@@ -322,7 +323,7 @@ class InsertsDict(object):
                     x.coverage,
                 )
                 for x in self.get(
-                    insert_types=insert_types, filter_threshold=filter_threshold
+                    insert_type=insert_type, filter_threshold=filter_threshold
                 )
             ],
             columns=(
@@ -340,11 +341,11 @@ class InsertsDict(object):
     def genes_to_dataframe(
         self,
         seq_id_or_idx=None,
-        insert_types="both",
+        insert_type="both",
         filter_threshold=None,
         buffer=4000,
     ):
-        inserts = self.get(seq_id_or_idx, insert_types, filter_threshold)
+        inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
 
         if len(inserts):
             df_genes = pd.concat(
@@ -415,7 +416,9 @@ class InsertsDict(object):
 
     def plot(
         self,
-        inserts=None,
+        seq_id_or_idxs=None,
+        insert_type="both",
+        filter_threshold=None,
         show_labels=True,
         col1="#8DDEF7",
         col2="#CFFCCC",
@@ -426,7 +429,7 @@ class InsertsDict(object):
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
 
-        inserts = inserts or []
+        inserts = self.get(seq_id_or_idxs, insert_type, filter_threshold)
         rec = self._get_graphic_records_genome(inserts, show_labels, col1, col2)
 
         if backend == "matplotlib":

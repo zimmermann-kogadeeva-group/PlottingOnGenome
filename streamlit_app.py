@@ -5,7 +5,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import streamlit as st
 
 import plotting_on_genome as pog
@@ -15,8 +14,8 @@ import plotting_on_genome as pog
 if "stage" not in st.session_state:
     st.session_state.stage = 0
 
-if "insert_types" not in st.session_state:
-    st.session_state.insert_types = "both"
+if "insert_type" not in st.session_state:
+    st.session_state.insert_type = "both"
 
 if "workdir" not in st.session_state:
     st.session_state.workdir = None
@@ -113,7 +112,7 @@ def get_main_inputs():
     fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
     rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
 
-    st.session_state.insert_types = st.selectbox(
+    st.session_state.insert_type = st.selectbox(
         "insert types:", ["both", "matched", "unmatched"]
     )
 
@@ -143,7 +142,7 @@ def convert_df(df, **kwargs):
 
 def show_results():
     inserts_all = st.session_state.pipeline
-    insert_types = st.session_state.insert_types
+    insert_type = st.session_state.insert_type
 
     filter_threshold = st.slider("Filter threshold:", 0.0, 1.0, 0.7)
 
@@ -154,7 +153,7 @@ def show_results():
         value=4000,
         help="Number of bases either side of the insert",
     )
-    params = dict(insert_types=insert_types, filter_threshold=filter_threshold)
+    params = dict(insert_type=insert_type, filter_threshold=filter_threshold)
 
     df_inserts = inserts_all.to_dataframe(**params)
     df_genes = inserts_all.genes_to_dataframe(**params, buffer=buffer)
@@ -217,15 +216,14 @@ def show_results():
                 st.write(f"No inserts found for {seq_id}!")
 
         elif option == "plot genome":
-            labels = st.toggle("Labels")
-            inserts = []
-            if st.toggle("Plot inserts", True):
-                inserts = inserts_all.get(**params)
 
             st.write(df_inserts)
 
+            labels = st.toggle("Labels")
+            insert_idxs = None if st.toggle("Plot inserts", True) else []
+
             fig, ax = plt.subplots(figsize=(10, 10 * (1 + 2 * labels)))
-            ax = inserts_all.plot(inserts, show_labels=labels, ax=ax)
+            ax = inserts_all.plot(insert_idxs, show_labels=labels, ax=ax, **params)
             st.pyplot(fig, use_container_width=True)
             plt.close()
 
