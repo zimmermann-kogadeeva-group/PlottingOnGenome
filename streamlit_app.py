@@ -5,7 +5,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import streamlit as st
 
 import plotting_on_genome as pog
@@ -14,9 +13,6 @@ import plotting_on_genome as pog
 
 if "stage" not in st.session_state:
     st.session_state.stage = 0
-
-if "insert_types" not in st.session_state:
-    st.session_state.insert_types = "both"
 
 if "workdir" not in st.session_state:
     st.session_state.workdir = None
@@ -113,10 +109,6 @@ def get_main_inputs():
     fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
     rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
 
-    st.session_state.insert_types = st.selectbox(
-        "insert types:", ["both", "matched", "unmatched"]
-    )
-
     if args.workdir:
         st.session_state.workdir = st.text_input("workdir", "Output")
 
@@ -143,7 +135,7 @@ def convert_df(df, **kwargs):
 
 def show_results():
     inserts_all = st.session_state.pipeline
-    insert_types = st.session_state.insert_types
+    insert_type = st.selectbox("Insert type:", ["both", "matched", "unmatched"])
 
     filter_threshold = st.slider("Filter threshold:", 0.0, 1.0, 0.7)
 
@@ -154,34 +146,42 @@ def show_results():
         value=4000,
         help="Number of bases either side of the insert",
     )
-    params = dict(insert_types=insert_types, filter_threshold=filter_threshold)
-
-    df_inserts = inserts_all.to_dataframe(**params)
-    df_genes = inserts_all.genes_to_dataframe(**params, buffer=buffer)
-
-    st.download_button(
-        label="Download all inserts as CSV",
-        data=df_inserts.pipe(convert_df, index=False),
-        file_name="inserts.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
-
-    st.download_button(
-        label="Download all genes as CSV",
-        data=df_genes.pipe(convert_df, index=False),
-        file_name="genes.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
-
-    option = st.selectbox(
-        "plot type:",
-        ["plot inserts", "plot genome", "plot insert dists"],
-        None,
-    )
+    params = dict(insert_type=insert_type, filter_threshold=filter_threshold)
 
     if inserts_all is not None:
+
+        df_inserts = inserts_all.to_dataframe(**params)
+        df_genes = inserts_all.genes_to_dataframe(**params, buffer=buffer)
+
+        counts = df_inserts.groupby("insert_matched").insert_matched.count().to_dict()
+        counts = {val: counts[val] if val in counts else 0 for val in (True, False)}
+        st.write(
+            f"Number of inserts:\n "
+            f"- matched: {counts[True]}\n "
+            f"- unmatched: {counts[False]}"
+        )
+
+        st.download_button(
+            label="Download all inserts as CSV",
+            data=df_inserts.pipe(convert_df, index=False),
+            file_name="inserts.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+        st.download_button(
+            label="Download all genes as CSV",
+            data=df_genes.pipe(convert_df, index=False),
+            file_name="genes.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+        option = st.selectbox(
+            "plot type:",
+            ["plot inserts", "plot genome", "plot insert dists"],
+            None,
+        )
 
         if option == "plot inserts":
 
@@ -203,6 +203,11 @@ def show_results():
                 st.write(df_genes.query("seq_id == @seq_id"))
 
                 for insert in inserts:
+                    st.write(
+                        f"Insert {insert.idx}: "
+                        f"coverage = {insert.coverage:.2f}, "
+                        f"matched = {insert.matched}"
+                    )
                     fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[3, 5])
                     fig.suptitle(f"Insert {insert.idx}")
                     axs = insert.plot(
@@ -217,15 +222,14 @@ def show_results():
                 st.write(f"No inserts found for {seq_id}!")
 
         elif option == "plot genome":
+
             labels = st.toggle("Labels")
-            inserts = []
-            if st.toggle("Plot inserts", True):
-                inserts = inserts_all.get(**params)
+            insert_idxs = None if st.toggle("Plot inserts", True) else []
 
             st.write(df_inserts)
 
             fig, ax = plt.subplots(figsize=(10, 10 * (1 + 2 * labels)))
-            ax = inserts_all.plot(inserts, show_labels=labels, ax=ax)
+            ax = inserts_all.plot(insert_idxs, show_labels=labels, ax=ax, **params)
             st.pyplot(fig, use_container_width=True)
             plt.close()
 

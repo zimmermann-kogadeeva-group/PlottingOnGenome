@@ -64,9 +64,12 @@ class Insert(object):
         return (
             "Insert("
             f"seq_id={self.seq_id}, "
+            f"idx={self.idx}, "
             f"start={self.start}, "
             f"end={self.end}, "
-            f"hit_id={self.hit_id})"
+            f"hit_id={self.hit_id}, "
+            f"coverage={self.coverage:.2f}, "
+            f"matched={self.matched})"
         )
 
     def __len__(self):

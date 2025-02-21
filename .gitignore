@@ -1,4 +1,9 @@
 
+# Dirs for data for testing
+Data
+Data/
+Output/
+
 # Python related
 .venv/
 __pycache__/
@@ -7,6 +12,8 @@ dist/
 build/
 *.spec
 *.log
+.ipynb_checkpoints/
+test.ipynb
 
 # Misc
 worktrees/
@@ -17,5 +24,4 @@ tags
 *.swp
 .envrc
 
-output/
 
