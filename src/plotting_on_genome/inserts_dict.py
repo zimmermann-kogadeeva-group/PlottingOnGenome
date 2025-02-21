@@ -321,6 +321,7 @@ class InsertsDict(object):
                     x.strand,
                     len(x),
                     x.coverage,
+                    x.matched,
                 )
                 for x in self.get(
                     insert_type=insert_type, filter_threshold=filter_threshold
@@ -328,13 +329,14 @@ class InsertsDict(object):
             ],
             columns=(
                 "seq_id",
-                "NCBI_accession_number",
+                "hit_id",
                 "insert_idx",
                 "insert_start",
                 "insert_end",
                 "insert_strand",
                 "insert_length",
                 "insert_coverage",
+                "insert_matched",
             ),
         )
 
