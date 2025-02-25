@@ -135,9 +135,29 @@ def convert_df(df, **kwargs):
 
 def show_results():
     inserts_all = st.session_state.pipeline
-    insert_type = st.selectbox("Insert type:", ["both", "matched", "unmatched"])
 
-    filter_threshold = st.slider("Filter threshold:", 0.0, 1.0, 0.7)
+    insert_type = st.selectbox(
+        "Insert type:",
+        ["both", "matched", "unmatched"],
+        help=(
+            "There are two types of inserts: matched and unmatched. Matched are when "
+            "both forward and reverse sequences could be matched to one another. "
+            "Unmatched are cases when either forward or reverse sequence could not be "
+            "matched to the corresponding one."
+        ),
+    )
+
+    filter_threshold = st.slider(
+        "Filter threshold:",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.7,
+        help=(
+            "Threshold value for insert coverage value. Insert coverage here is the "
+            "ratio of length of sequence mapped to genome to the length of the whole "
+            "sequence."
+        ),
+    )
 
     buffer = st.slider(
         "View window size:",
