@@ -5,6 +5,7 @@ from dna_features_viewer import (
     GraphicFeature,
     GraphicRecord,
 )
+from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import LinearSegmentedColormap
 
 from .helper import shift_feature
@@ -116,12 +117,7 @@ class Insert(object):
         )
 
     def _get_graphic_records_insert(
-        self,
-        buffer,
-        col1,
-        col2,
-        feature_types=None,
-        colorbar=False,
+        self, buffer, col1, col2, feature_types=None, cmap=None
     ):
         genes = self.get_genes(buffer)
         if feature_types is None:
@@ -148,8 +144,7 @@ class Insert(object):
         # Create graphic objects for all the genes and CDSes using
         # dna_features_viewer.BiopythonTranslator()
 
-        if colorbar:
-            cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
+        if cmap is not None:
             for i, gene in enumerate(genes):
                 genes[i].qualifiers["color"] = cmap(self._get_gene_coverage(gene))
 
@@ -169,8 +164,8 @@ class Insert(object):
     def plot(
         self,
         buffer=4000,
-        col1="#8DDEF7",
-        col2="#CFFCCC",
+        col1="#ebf3ed",
+        col2="#2e8b57",
         feature_types=None,
         colorbar=False,
         axs=None,
@@ -178,8 +173,12 @@ class Insert(object):
         **kwargs,
     ):
 
+        cmap = None
+        if colorbar:
+            cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
+
         seqs, hits = self._get_graphic_records_insert(
-            buffer, col1, col2, feature_types, colorbar
+            buffer, col1, col2, feature_types, cmap
         )
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
@@ -188,11 +187,20 @@ class Insert(object):
             # Default values for figure size and create the figure
             if axs is None:
                 fig, axs = plt.subplots(2, 1, **kwargs)
+            else:
+                fig = axs[0].get_figure()
             assert len(axs) == 2
 
             # Create a new graphic object for query sequence
             _ = seqs.plot(ax=axs[0])
             _ = hits.plot(ax=axs[1])
+
+            if colorbar:
+                ax_cb = fig.add_axes([0.9, 0.1, 0.02, 0.8])
+                fig.subplots_adjust(left=0.1, right=0.85)
+                ColorbarBase(
+                    ax_cb, cmap=cmap, orientation="vertical", label="gene coverage"
+                )
 
             fig_axvline(axs, self.start)
             fig_axvline(axs, self.end)
