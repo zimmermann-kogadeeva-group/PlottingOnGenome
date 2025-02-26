@@ -106,8 +106,10 @@ def get_main_inputs():
         accept_multiple_files=True,
     )
 
-    fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
-    rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
+    fwd_suf, rev_suf = None, None
+    if st.toggle("Match forward and reverse sequences"):
+        fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
+        rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
 
     if args.workdir:
         st.session_state.workdir = st.text_input("workdir", "Output")

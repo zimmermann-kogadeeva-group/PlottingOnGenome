@@ -136,17 +136,20 @@ class InsertsDict(object):
         return matched + unmatched_fwd + unmatched_rev
 
     def _get_single_inserts(self, seq_id):
-        return [
-            Insert(
-                seq_id,
-                idx,
-                self.seqs[x.query_id],
-                x,
-                genome=self.genome[x.hit_id],
-                avg_insert_len=0,  # TODO: check that it makes sense
-            )
-            for idx, x in enumerate(self._blast_results[seq_id].hsps)
-        ]
+        inserts = []
+        if seq_id in self._blast_results:
+            inserts = [
+                Insert(
+                    seq_id,
+                    idx,
+                    self.seqs[x.query_id],
+                    x,
+                    genome=self.genome[x.hit_id],
+                    paired=False,
+                )
+                for idx, x in enumerate(self._blast_results[seq_id].hsps)
+            ]
+        return inserts
 
     def __init__(
         self,
@@ -222,7 +225,7 @@ class InsertsDict(object):
         self._seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
 
         if self._fwd_suf is not None and self._rev_suf is not None:
-            self._seq_ids = tuple(
+            self._seq_ids = sorted(
                 {
                     re.sub(f"{self._fwd_suf}$|{self._rev_suf}$", "", x)
                     for x in self.seqs.keys()
@@ -233,7 +236,7 @@ class InsertsDict(object):
                 seq_id: self._get_paired_inserts(seq_id) for seq_id in self._seq_ids
             }
         else:
-            self._seq_ids = set(self.seqs.keys())
+            self._seq_ids = sorted(set(self.seqs.keys()))
 
             self._all_inserts = {
                 seq_id: self._get_single_inserts(seq_id) for seq_id in self._seq_ids
@@ -422,8 +425,8 @@ class InsertsDict(object):
         insert_type="both",
         filter_threshold=None,
         show_labels=True,
-        col1="#8DDEF7",
-        col2="#CFFCCC",
+        col1="#ebf3ed",
+        col2="#2e8b57",
         ax=None,
         backend="matplotlib",
         **kwargs,
