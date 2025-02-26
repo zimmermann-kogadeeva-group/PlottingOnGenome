@@ -39,6 +39,7 @@ class Insert(object):
         hsp2=None,
         genome=None,
         avg_insert_len=4000,
+        paired=True,
     ):
         # TODO: maybe switch to using a list of hsps instead of hsp1 and hsp2
         self.hsp1 = hsp1
@@ -52,7 +53,10 @@ class Insert(object):
         self.idx = idx
         self.matched = True if hsp2 is not None else False
 
-        self.start, self.end = self._get_endpoints(hsp1, hsp2, avg_insert_len)
+        if paired:
+            self.start, self.end = self._get_endpoints(hsp1, hsp2, avg_insert_len)
+        else:
+            self.start, self.end = self.hsp1.hit_start, self.hsp1.hit_end
 
         self._genome = genome
 
