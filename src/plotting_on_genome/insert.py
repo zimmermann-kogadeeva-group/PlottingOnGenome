@@ -94,6 +94,8 @@ class Insert(object):
             return 1.0
         elif gene_end < self.start or gene_start > self.end:
             return 0.0
+        elif gene_start < self.start and gene_end > self.end:  # TODO: check this
+            return (self.end - self.start + 1) / (gene_end - gene_start + 1)
         elif gene_start < self.start and self.start <= gene_end <= self.end:
             return (gene_end - self.start + 1) / (gene_end - gene_start + 1)
         elif gene_end > self.end and self.start <= gene_start <= self.end:
