@@ -12,6 +12,39 @@ def shift_feature(feature, shift=0):
     return new_feature
 
 
+def get_seqs(
+    seq_file,
+    fwd_primer=None,
+    rev_primer=None,
+    fwd_suffix=None,
+    rev_suffix=None,
+    output_file=None,
+):
+    # No primers to remove
+    seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
+
+    # Remove primers in unpaired sequences
+    if fwd_primer is not None and rev_primer is None:
+        for rec_id, rec in seqs.items():
+            rec.seq = rec.seq.replace(fwd_primer, "")
+
+    # Remove primers in both forward and reverse sequences
+    elif fwd_primer is not None and rev_primer is not None:
+        assert fwd_suffix is not None and rev_suffix is not None
+
+        for rec_id, rec in seqs.items():
+            if rec_id.endswith(fwd_suffix):
+                rec.seq = rec.seq.replace(fwd_primer, "")
+            elif rec_id.endswith(rev_suffix):
+                rec.seq = rec.seq.replace(rev_primer, "")
+
+    if output_file is not None:
+        with open(output_file, "w") as fh:
+            SeqIO.write(seqs.values(), fh, "fasta")
+
+    return seqs
+
+
 def _download_genome(search_term, email, retmax=100):
     # Set the email address for NCBI queries
     Entrez.email = email

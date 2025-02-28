@@ -15,7 +15,7 @@ from dna_features_viewer import (
     GraphicFeature,
 )
 
-from .helper import download_genome, run_blast, shift_feature
+from .helper import download_genome, get_seqs, run_blast, shift_feature
 from .insert import Insert
 
 
@@ -100,9 +100,9 @@ class InsertsDict(object):
             Insert(
                 seq_id,
                 idx,
-                self.seqs[fwds[i].query_id],
+                self._seqs[fwds[i].query_id],
                 fwds[i],
-                self.seqs[revs[j].query_id],
+                self._seqs[revs[j].query_id],
                 revs[j],
                 genome=self.genome[fwds[i].hit_id],
             )
@@ -113,7 +113,7 @@ class InsertsDict(object):
             Insert(
                 seq_id,
                 idx + len(matched),
-                self.seqs[fwds[i].query_id],
+                self._seqs[fwds[i].query_id],
                 fwds[i],
                 genome=self.genome[fwds[i].hit_id],
                 avg_insert_len=self._avg_insert_len,
@@ -125,7 +125,7 @@ class InsertsDict(object):
             Insert(
                 seq_id,
                 idx + len(matched) + len(unmatched_fwd),
-                self.seqs[revs[i].query_id],
+                self._seqs[revs[i].query_id],
                 revs[i],
                 genome=self.genome[revs[i].hit_id],
                 avg_insert_len=self._avg_insert_len,
@@ -142,7 +142,7 @@ class InsertsDict(object):
                 Insert(
                     seq_id,
                     idx,
-                    self.seqs[x.query_id],
+                    self._seqs[x.query_id],
                     x,
                     genome=self.genome[x.hit_id],
                     paired=False,
@@ -165,12 +165,11 @@ class InsertsDict(object):
         blast_clean=True,
         max_insert_len=10000,
         avg_insert_len=4000,
+        fwd_primer=None,
+        rev_primer=None,
         **kwargs,
     ):
-
         # Populate obj attributes
-        self.seq_file = seq_file
-        self.work_dir = Path(work_dir)
         self._max_insert_len = max_insert_len
         self._avg_insert_len = avg_insert_len
         # If fwd and rev suffixes are None, then inserts are not paired
@@ -178,7 +177,24 @@ class InsertsDict(object):
         self._rev_suf = rev_suffix
 
         # Make sure that specified work
+        self.work_dir = Path(work_dir)
         self.work_dir.mkdir(exist_ok=True, parents=True)
+
+        # Get seqs and remove primers if need be and redefine self.seq_file
+        seq_output_file = None
+        self.seq_file = Path(seq_file)
+        if fwd_primer is not None:
+            seq_output_file = self.work_dir / (self.seq_file.stem + "_wo_primers.fasta")
+            self.seq_file = seq_output_file
+
+        self._seqs = get_seqs(
+            seq_file,
+            fwd_primer,
+            rev_primer,
+            self._fwd_suf,
+            self._rev_suf,
+            seq_output_file,
+        )
 
         # Check at genome_file or search_term is specified
         if search_term is not None:
@@ -198,7 +214,7 @@ class InsertsDict(object):
         with open(self.work_dir / "parameters.json", "w") as fh:
             json.dump(
                 {
-                    "seq_file": self.seq_file,
+                    "seq_file": str(self.seq_file),
                     "search_term": search_term,
                     "genome_file": str(genome_file),
                     "email": email,
@@ -212,7 +228,7 @@ class InsertsDict(object):
 
         # Run BLAST and use xml format to save blast output
         self._blast_results = run_blast(
-            seq_file,
+            self.seq_file,
             genome_fasta,
             self.work_dir / "blast_output.xml",
         )
@@ -222,13 +238,13 @@ class InsertsDict(object):
                 k: v for k, v in self._blast_results.items() if len(v.hits) > 0
             }
 
-        self._seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
+        self._seqs = SeqIO.to_dict(SeqIO.parse(self.seq_file, "fasta"))
 
         if self._fwd_suf is not None and self._rev_suf is not None:
             self._seq_ids = sorted(
                 {
                     re.sub(f"{self._fwd_suf}$|{self._rev_suf}$", "", x)
-                    for x in self.seqs.keys()
+                    for x in self._seqs.keys()
                 }
             )
 
@@ -236,7 +252,7 @@ class InsertsDict(object):
                 seq_id: self._get_paired_inserts(seq_id) for seq_id in self._seq_ids
             }
         else:
-            self._seq_ids = sorted(set(self.seqs.keys()))
+            self._seq_ids = sorted(set(self._seqs.keys()))
 
             self._all_inserts = {
                 seq_id: self._get_single_inserts(seq_id) for seq_id in self._seq_ids
