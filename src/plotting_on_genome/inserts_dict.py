@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import hashlib
 import json
 import re
 from itertools import accumulate, product
@@ -8,14 +7,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from BCBio import GFF
 from Bio import SeqIO
 from dna_features_viewer import (
     CircularGraphicRecord,
     GraphicFeature,
 )
 
-from .helper import download_genome, get_seqs, run_blast, shift_feature
+from .helper import get_genome, get_genome_file, run_blast, shift_feature
 from .insert import Insert
 
 
@@ -39,39 +37,6 @@ def _get_contig_label(contig, mapped_ids, show_labels=True):
 
 
 class InsertsDict(object):
-
-    def _get_genome_file(self, work_dir, search_term, retmax):
-        # Hash the search term to use as filename in cache dir
-        search_hashed = hashlib.sha1((search_term + str(retmax)).encode()).hexdigest()
-        return work_dir / f"db_{search_hashed}.gbk"
-
-    def _get_genome(
-        self, genome_file, genome_fasta, search_term=None, email=None, retmax=None
-    ):
-        # Get genome
-        if search_term is not None:
-            if email is None:
-                raise RuntimeError("Email is required for NCBI API")
-
-            genome = download_genome(search_term, email, retmax, genome_file)
-        else:
-            if genome_file.suffix == ".gff":
-                genome = SeqIO.to_dict(GFF.parse(genome_file))
-            elif genome_file.suffix == ".gbk":
-                genome = SeqIO.to_dict(SeqIO.parse(genome_file, "genbank"))
-            else:
-                raise RuntimeError(
-                    "Wrong format expected either `.gbk` or `.gff` file."
-                )
-
-        # Save in fasta format (only acceptable format for makeblastdb)
-        SeqIO.write(
-            [x for x in genome.values() if x.seq.defined],
-            genome_fasta,
-            "fasta",
-        )
-
-        return genome
 
     def _get_paired_inserts(self, seq_id):
         # get all relevant fwd and rev hits from blast
@@ -165,8 +130,6 @@ class InsertsDict(object):
         blast_clean=True,
         max_insert_len=10000,
         avg_insert_len=4000,
-        fwd_primer=None,
-        rev_primer=None,
         **kwargs,
     ):
         # Populate obj attributes
@@ -181,24 +144,12 @@ class InsertsDict(object):
         self.work_dir.mkdir(exist_ok=True, parents=True)
 
         # Get seqs and remove primers if need be and redefine self.seq_file
-        seq_output_file = None
         self.seq_file = Path(seq_file)
-        if fwd_primer is not None:
-            seq_output_file = self.work_dir / (self.seq_file.stem + "_wo_primers.fasta")
-            self.seq_file = seq_output_file
-
-        self._seqs = get_seqs(
-            seq_file,
-            fwd_primer,
-            rev_primer,
-            self._fwd_suf,
-            self._rev_suf,
-            seq_output_file,
-        )
+        self._seqs = SeqIO.to_dict(SeqIO.parse(self.seq_file, "fasta"))
 
         # Check at genome_file or search_term is specified
         if search_term is not None:
-            genome_file = self._get_genome_file(self.work_dir, search_term, retmax)
+            genome_file = get_genome_file(self.work_dir, search_term, retmax)
             genome_fasta = genome_file.with_suffix(".fasta")
         elif genome_file is not None:
             genome_file = Path(genome_file)
@@ -206,9 +157,7 @@ class InsertsDict(object):
         else:
             raise ValueError("Either genome_file or search_term needs to be given")
 
-        self._genome = self._get_genome(
-            genome_file, genome_fasta, search_term, email, retmax
-        )
+        self._genome = get_genome(genome_file, genome_fasta, search_term, email, retmax)
 
         # Save the input parameters
         with open(self.work_dir / "parameters.json", "w") as fh:
