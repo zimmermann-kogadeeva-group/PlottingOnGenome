@@ -45,8 +45,6 @@ def run_pipeline(
     retmax,
     fwd_suf,
     rev_suf,
-    fwd_primer,
-    rev_primer,
     workdir=None,
 ):
     with st.spinner("Processing..."), TempDirManager(workdir) as work_dir:
@@ -74,8 +72,6 @@ def run_pipeline(
             retmax=retmax,
             fwd_suffix=fwd_suf,
             rev_suffix=rev_suf,
-            fwd_primer=fwd_primer,
-            rev_primer=rev_primer,
         )
 
         return res
@@ -119,14 +115,9 @@ def get_main_inputs():
     )
 
     fwd_suf, rev_suf = None, None
-    fwd_primer, rev_primer = None, None
     if st.toggle("Match forward and reverse sequences"):
         fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
         rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
-        fwd_primer = st.text_input("Primer for forward sequences:", key="fwd_primer")
-        rev_primer = st.text_input("Primer for reverse sequences:", key="rev_primer")
-    else:
-        fwd_primer = st.text_input("Primer:", key="fwd_primer")
 
     if args.workdir:
         st.session_state.workdir = st.text_input("workdir", "Output")
@@ -142,8 +133,6 @@ def get_main_inputs():
             retmax,
             fwd_suf,
             rev_suf,
-            fwd_primer,
-            rev_primer,
             st.session_state.workdir,
         ],
     )

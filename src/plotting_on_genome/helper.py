@@ -1,7 +1,9 @@
+import hashlib
 import subprocess
 from copy import deepcopy
 from pathlib import Path
 
+from BCBio import GFF
 from Bio import Entrez, SearchIO, SeqIO
 
 
@@ -10,39 +12,6 @@ def shift_feature(feature, shift=0):
     new_feature = deepcopy(feature)
     new_feature.location = feature.location + shift
     return new_feature
-
-
-def get_seqs(
-    seq_file,
-    fwd_primer=None,
-    rev_primer=None,
-    fwd_suffix=None,
-    rev_suffix=None,
-    output_file=None,
-):
-    # No primers to remove
-    seqs = SeqIO.to_dict(SeqIO.parse(seq_file, "fasta"))
-
-    # Remove primers in unpaired sequences
-    if fwd_primer is not None and rev_primer is None:
-        for rec_id, rec in seqs.items():
-            rec.seq = rec.seq.replace(fwd_primer, "")
-
-    # Remove primers in both forward and reverse sequences
-    elif fwd_primer is not None and rev_primer is not None:
-        assert fwd_suffix is not None and rev_suffix is not None
-
-        for rec_id, rec in seqs.items():
-            if rec_id.endswith(fwd_suffix):
-                rec.seq = rec.seq.replace(fwd_primer, "")
-            elif rec_id.endswith(rev_suffix):
-                rec.seq = rec.seq.replace(rev_primer, "")
-
-    if output_file is not None:
-        with open(output_file, "w") as fh:
-            SeqIO.write(seqs.values(), fh, "fasta")
-
-    return seqs
 
 
 def _download_genome(search_term, email, retmax=100):
@@ -85,6 +54,38 @@ def download_genome(search_term, email, retmax=100, output_path=None):
             SeqIO.write(data_gb.values(), output_path, "genbank")
 
     return data_gb
+
+
+def get_genome_file(work_dir, search_term, retmax):
+    work_dir = Path(work_dir)
+    # Hash the search term to use as filename in cache dir
+    search_hashed = hashlib.sha1((search_term + str(retmax)).encode()).hexdigest()
+    return work_dir / f"db_{search_hashed}.gbk"
+
+
+def get_genome(genome_file, genome_fasta, search_term=None, email=None, retmax=None):
+    # Get genome
+    if search_term is not None:
+        if email is None:
+            raise RuntimeError("Email is required for NCBI API")
+
+        genome = download_genome(search_term, email, retmax, genome_file)
+    else:
+        if genome_file.suffix == ".gff":
+            genome = SeqIO.to_dict(GFF.parse(genome_file))
+        elif genome_file.suffix == ".gbk":
+            genome = SeqIO.to_dict(SeqIO.parse(genome_file, "genbank"))
+        else:
+            raise RuntimeError("Wrong format expected either `.gbk` or `.gff` file.")
+
+    # Save in fasta format (only acceptable format for makeblastdb)
+    SeqIO.write(
+        [x for x in genome.values() if x.seq.defined],
+        genome_fasta,
+        "fasta",
+    )
+
+    return genome
 
 
 def _correct_hit_id(x):
