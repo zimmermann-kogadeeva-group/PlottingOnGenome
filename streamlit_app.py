@@ -63,23 +63,28 @@ def run_pipeline(
                 fh.write(seq.getvalue())
                 fh.write(b"\n")
 
-        res = pog.InsertsDict(
-            seq_file=seq_path,
-            work_dir=dirpath,
-            genome_file=genome_path,
-            search_term=search_term,
-            email=email,
-            retmax=retmax,
-            fwd_suffix=fwd_suf,
-            rev_suffix=rev_suf,
-        )
-
-        return res
+        try:
+            res = pog.InsertsDict(
+                seq_file=seq_path,
+                work_dir=dirpath,
+                genome_file=genome_path,
+                search_term=search_term,
+                email=email,
+                retmax=retmax,
+                fwd_suffix=fwd_suf,
+                rev_suffix=rev_suf,
+            )
+        except RuntimeError as e:
+            st.error(e)
+        else:
+            return res
 
 
 def submit(*args):
-    st.session_state.pipeline = run_pipeline(*args)
-    st.session_state.stage = 1
+    res = run_pipeline(*args)
+    if res is not None:
+        st.session_state.pipeline = res
+        st.session_state.stage = 1
 
 
 def get_main_inputs():

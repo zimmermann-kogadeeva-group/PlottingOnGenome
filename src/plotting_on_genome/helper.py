@@ -78,12 +78,13 @@ def get_genome(genome_file, genome_fasta, search_term=None, email=None, retmax=N
         else:
             raise RuntimeError("Wrong format expected either `.gbk` or `.gff` file.")
 
+    defined_seqs = [x for x in genome.values() if x.seq.defined]
+
+    if not len(defined_seqs):
+        raise RuntimeError("Genome file does not contain any sequences!")
+
     # Save in fasta format (only acceptable format for makeblastdb)
-    SeqIO.write(
-        [x for x in genome.values() if x.seq.defined],
-        genome_fasta,
-        "fasta",
-    )
+    SeqIO.write(defined_seqs, genome_fasta, "fasta")
 
     return genome
 
@@ -98,22 +99,26 @@ def _correct_hit_id(x):
 def run_blast(seq_file, db_file, blast_output):
     # TODO: check how to catch errors from blast
     # make blast database
-    subprocess.run(
+    run1 = subprocess.run(
         f"makeblastdb -in {db_file} -parse_seqids -dbtype nucl",
         shell=True,
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+    if run1.returncode != 0:
+        raise OSError(f"Failed to run makeblastdb: {run1.stderr.decode()}")
 
     # align input sequences with query using blastn with default options
-    subprocess.run(
+    run2 = subprocess.run(
         f"blastn -query {seq_file} -db {db_file} -out {blast_output} -outfmt 5",
         shell=True,
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+    if run2.returncode != 0:
+        raise OSError(f"Failed to run blastn: {run2.stderr.decode()}")
 
     # Return a dictionary correcting the hit IDs which get an unnecessary
     # prefix from BLAST
