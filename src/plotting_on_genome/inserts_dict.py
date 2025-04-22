@@ -317,6 +317,9 @@ class InsertsDict(object):
     ):
         inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
 
+        df_genes = pd.DataFrame(
+            [], columns=("start", "end", "strand", "type", "coverage", "locus_tag")
+        )
         if len(inserts):
             df_genes = pd.concat(
                 [
@@ -327,7 +330,7 @@ class InsertsDict(object):
                 ]
             ).reset_index(drop=True)
 
-            return df_genes
+        return df_genes
 
     def _get_graphic_records_genome(self, inserts, show_labels, col1, col2):
 
