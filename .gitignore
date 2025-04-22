@@ -1,8 +1,8 @@
 
 # Dirs for data for testing
-Data
-Data/
-Output/
+data
+data/
+output/
 
 # Python related
 .venv/
