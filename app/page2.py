@@ -136,7 +136,7 @@ def plot_dists(all_inserts, insert_type, filter_threshold, **kwargs):
 def show_results():
     inserts_all = st.session_state.pipeline
 
-    insert_type = st.selectbox(
+    insert_type = st.sidebar.selectbox(
         "Insert type:",
         ["both", "matched", "unmatched"],
         help=(
@@ -147,7 +147,7 @@ def show_results():
         ),
     )
 
-    filter_threshold = st.slider(
+    filter_threshold = st.sidebar.slider(
         "Filter threshold:",
         min_value=0.0,
         max_value=1.0,
@@ -159,7 +159,7 @@ def show_results():
         ),
     )
 
-    buffer = st.slider(
+    buffer = st.sidebar.slider(
         "View window size:",
         min_value=0,
         max_value=10000,
@@ -172,7 +172,8 @@ def show_results():
 
     if inserts_all is not None:
         # download all genes and inserts
-        download_tables(inserts_all, **params)
+        with st.sidebar:
+            download_tables(inserts_all, **params)
 
         option = st.selectbox(
             "plot type:",
