@@ -30,19 +30,35 @@ def get_main_inputs(workdir=False):
 
     # Text inputs
     genome_fh = None
-    search_term = None
+    search_terms = None
     email = None
     retmax = None
 
     if genome_src == "NCBI":
-        search_term = st.text_input("Search term:", key="search_term")
+
+        col1, col2 = st.columns([0.15, 1])
+        with col1:
+            if st.button("Add new search term"):
+                st.session_state.search_term_count += 1
+        with col2:
+            if st.button("Remove search term"):
+                st.session_state.search_term_count -= 1
+
+        search_terms = [
+            st.text_input(f"Search term for genome {i+1}:", key=f"search_term_{i}")
+            for i in range(st.session_state.search_term_count)
+        ]
+
         email = st.text_input("Email:", key="email")
         retmax = st.text_input(
             "Retmax (Max. # of records from NCBI)", 200, key="retmax"
         )
     else:
         genome_fh = st.file_uploader(
-            "Upload genome:", type=("gbk", "gff"), key="genome"
+            "Upload genome:",
+            type=("gbk", "gff"),
+            key="genome",
+            accept_multiple_files=True,
         )
 
     seq_fh = st.file_uploader(
@@ -61,16 +77,26 @@ def get_main_inputs(workdir=False):
     if workdir:
         workdir_path = st.text_input("workdir", "Output")
 
-    all_inputs = {
+    most_inputs = {
         "seq_fh": seq_fh,
-        "genome_fh": genome_fh,
         "email": email,
-        "search_term": search_term,
         "retmax": retmax,
         "fwd_suf": fwd_suf,
         "rev_suf": rev_suf,
         "workdir": workdir_path,
     }
+
+    all_inputs = []
+    if search_terms is not None:
+        all_inputs = {
+            x: most_inputs.copy() | {"search_term": x, "genome_fh": None}
+            for x in search_terms
+        }
+    else:
+        all_inputs = {
+            x.name: most_inputs.copy() | {"genome_fh": x, "search_term": None}
+            for x in genome_fh
+        }
 
     return all_inputs
 
@@ -86,7 +112,7 @@ def run_pipeline(
     rev_suf,
     workdir=None,
 ):
-    with st.spinner("Processing..."), TempDirManager(workdir) as work_dir:
+    with TempDirManager(workdir) as work_dir:
         dirpath = Path(work_dir)
         if genome_fh is not None:
             genome_path = str(dirpath / genome_fh.name)
@@ -115,5 +141,6 @@ def run_pipeline(
             )
         except RuntimeError as e:
             st.error(e)
+            return None
         else:
             return res

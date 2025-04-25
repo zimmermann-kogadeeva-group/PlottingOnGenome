@@ -277,6 +277,14 @@ class InsertsDict(object):
 
         return inserts
 
+    def get_insert_ids(self, insert_type="both", filter_threshold=None, **kwargs):
+        return [
+            x.seq_id
+            for x in self.get(
+                insert_type=insert_type, filter_threshold=filter_threshold
+            )
+        ]
+
     def to_dataframe(self, insert_type="both", filter_threshold=None):
         return pd.DataFrame(
             [
@@ -332,7 +340,18 @@ class InsertsDict(object):
 
         return df_genes
 
-    def _get_graphic_records_genome(self, inserts, show_labels, col1, col2):
+    def get_graphic_features(
+        self,
+        seq_id_or_idxs=None,
+        insert_type="both",
+        filter_threshold=None,
+        show_labels=True,
+        col1="#ebf3ed",
+        col2="#2e8b57",
+        **kwargs,
+    ):
+
+        inserts = self.get(seq_id_or_idxs, insert_type, filter_threshold)
 
         # Get just the sequences for each NCBI record and order them by size in
         # descending order. 'x.features[0]' to get the whole sequence for a
@@ -342,6 +361,10 @@ class InsertsDict(object):
             key=lambda x: len(x),
             reverse=True,
         )
+
+        linecolor = "#000000"
+        if "linecolor" in kwargs:
+            linecolor = kwargs.pop("linecolor")
 
         # Get the shifts needed to plot all the NCBI records in a continuous line
         shifts = list(accumulate([0] + [len(x) for x in db_seqs]))
@@ -353,13 +376,15 @@ class InsertsDict(object):
         # Make plots of NCBI records and label only the ones that were mapped
         # to. Using BiopythonTranslator() didn't allow for control of labels,
         # hence we are just using GraphicFeature class
-        features = [
+        genome = [
             (
                 GraphicFeature(
                     start=shifts[i],
                     end=shifts[i + 1],
                     label=_get_contig_label(x, mapped_ids, show_labels),
                     color=col1,
+                    linecolor="#000000",
+                    **kwargs,
                 )
             )
             for i, x in enumerate(db_seqs)
@@ -377,15 +402,13 @@ class InsertsDict(object):
                 strand=insert.strand,
                 color=col2,
                 label=None,
+                linecolor=linecolor,
+                **kwargs,
             )
             for insert in inserts
         ]
 
-        rec = CircularGraphicRecord(
-            sequence_length=shifts[-1], features=features + hits
-        )
-
-        return rec
+        return shifts[-1], genome + hits
 
     def plot(
         self,
@@ -402,8 +425,17 @@ class InsertsDict(object):
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
 
-        inserts = self.get(seq_id_or_idxs, insert_type, filter_threshold)
-        rec = self._get_graphic_records_genome(inserts, show_labels, col1, col2)
+        seq_len, features = self.get_graphic_features(
+            seq_id_or_idxs,
+            insert_type,
+            filter_threshold,
+            show_labels,
+            col1,
+            col2,
+            **kwargs,
+        )
+
+        rec = CircularGraphicRecord(sequence_length=seq_len, features=features)
 
         if backend == "matplotlib":
             if ax is None:

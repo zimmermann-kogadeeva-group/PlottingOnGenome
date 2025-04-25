@@ -122,8 +122,8 @@ class Insert(object):
             ]
         )
 
-    def _get_graphic_records_insert(
-        self, buffer, col1, col2, feature_types=None, cmap=None
+    def get_graphic_records(
+        self, buffer=4000, col1="#ebf3ed", col2="#2e8b57", feature_types=None, cmap=None
     ):
         genes = self.get_genes(buffer)
         if feature_types is None:
@@ -183,9 +183,7 @@ class Insert(object):
         if colorbar:
             cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
 
-        seqs, hits = self._get_graphic_records_insert(
-            buffer, col1, col2, feature_types, cmap
-        )
+        seqs, hits = self.get_graphic_records(buffer, col1, col2, feature_types, cmap)
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
 
