@@ -10,12 +10,16 @@ from page2 import show_results
 if "stage" not in st.session_state:
     st.session_state.stage = 0
 
+if "search_term_count" not in st.session_state:
+    st.session_state.search_term_count = 1
 
-def submit(*args, **kwargs):
-    res = run_pipeline(*args, **kwargs)
-    if res is not None:
-        st.session_state.pipeline = res
-        st.session_state.stage = 1
+
+def submit(*args):
+    with st.spinner("Processing..."):
+        res = {name: run_pipeline(**param_set) for name, param_set in args[0].items()}
+        if res is not None:
+            st.session_state.results = res
+            st.session_state.stage = 1
 
 
 def main():
@@ -30,12 +34,13 @@ def main():
         if st.session_state.stage == 1:
             if st.button("Reset"):
                 st.session_state.stage = 0
+                st.session_state.search_term_count = 1
                 st.rerun()
 
     if st.session_state.stage == 0:
         all_inputs = get_main_inputs(args.workdir)
         st.button(
-            "Submit", on_click=submit, kwargs=all_inputs, use_container_width=True
+            "Submit", on_click=submit, args=[all_inputs], use_container_width=True
         )
 
     if st.session_state.stage >= 1:

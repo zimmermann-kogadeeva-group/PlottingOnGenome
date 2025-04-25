@@ -1,7 +1,10 @@
 from copy import deepcopy
+from itertools import chain, cycle
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+from dna_features_viewer import CircularGraphicRecord
+from matplotlib import color_sequences
 
 
 def set_feature(feature, **kwargs):
@@ -108,3 +111,27 @@ def plot_dists(
         axs[1].set(xticklabels=[], title="Coverage")
 
     return axs
+
+
+def plot_multiple_genomes(
+    *inserts_dict, seq_id=None, color_palette="tab10", ax=None, **kwargs
+):
+    if "figsize" not in kwargs:
+        kwargs["figsize"] = (10, 8)
+
+    if ax is None:
+        fig, ax = plt.subplots(**kwargs)
+
+    palette = cycle(color_sequences[color_palette])
+
+    res = [
+        ins_dict.get_graphic_features(seq_id, col1=col, col2=col, linecolor=col)
+        for ins_dict, col in zip(inserts_dict, palette)
+    ]
+
+    features = list(chain.from_iterable([x[1] for x in res]))
+    rec = CircularGraphicRecord(max([x[0] for x in res]), features)
+
+    _ = rec.plot(ax, annotate_inline=False)
+
+    return ax

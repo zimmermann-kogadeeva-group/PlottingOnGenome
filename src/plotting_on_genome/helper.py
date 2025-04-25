@@ -3,6 +3,7 @@ import subprocess
 from copy import deepcopy
 from pathlib import Path
 
+import pandas as pd
 from BCBio import GFF
 from Bio import Entrez, SearchIO, SeqIO
 
@@ -67,7 +68,7 @@ def get_genome(genome_file, genome_fasta, search_term=None, email=None, retmax=N
     # Get genome
     if search_term is not None:
         if email is None:
-            raise RuntimeError("Email is required for NCBI API")
+            raise ValueError("Email is required for NCBI API")
 
         genome = download_genome(search_term, email, retmax, genome_file)
     else:
@@ -81,7 +82,13 @@ def get_genome(genome_file, genome_fasta, search_term=None, email=None, retmax=N
     defined_seqs = [x for x in genome.values() if x.seq.defined]
 
     if not len(defined_seqs):
-        raise RuntimeError("Genome file does not contain any sequences!")
+
+        message = f"Genome file {genome_file} does not contain any sequences!"
+        if search_term is not None:
+            message = (
+                f"Search term '{search_term}' did not yield a genome with sequences"
+            )
+        raise RuntimeError(message)
 
     # Save in fasta format (only acceptable format for makeblastdb)
     SeqIO.write(defined_seqs, genome_fasta, "fasta")
@@ -126,3 +133,51 @@ def run_blast(seq_file, db_file, blast_output):
         x.id: x.hit_map(_correct_hit_id)
         for x in SearchIO.parse(blast_output, "blast-xml")
     }
+
+
+def get_inserts_df(inserts_dicts, insert_type="both", filter_threshold=None, **kwargs):
+
+    inserts_dfs = [
+        x.to_dataframe(
+            insert_type=insert_type, filter_threshold=filter_threshold
+        ).assign(genome=name)
+        for name, x in inserts_dicts.items()
+    ]
+
+    return pd.concat(inserts_dfs, ignore_index=True)
+
+
+def get_insert_presence_df(
+    insert_dicts, insert_type="both", filter_threshold=None, **kwargs
+):
+    dfs = [
+        pd.DataFrame(
+            x.get_insert_ids(insert_type, filter_threshold),
+            columns=["insert_ids"],
+        ).assign(genome=name)
+        for name, x in insert_dicts.items()
+    ]
+
+    df_insert_presence = (
+        pd.concat(dfs, ignore_index=True)
+        .groupby(["insert_ids", "genome"], as_index=False)
+        .agg(num_inserts=pd.NamedAgg("insert_ids", "count"))
+        .pivot(index="insert_ids", columns="genome")
+        .loc[:, ("num_inserts")]
+    )
+    return df_insert_presence
+
+
+def get_genes_df(
+    inserts_dicts, insert_type="both", filter_threshold=None, buffer=None, **kwargs
+):
+    genes_dfs = [
+        x.genes_to_dataframe(
+            insert_type=insert_type,
+            filter_threshold=filter_threshold,
+            buffer=buffer,
+        ).assign(genome=name)
+        for name, x in inserts_dicts.items()
+    ]
+
+    return pd.concat(genes_dfs, ignore_index=True)

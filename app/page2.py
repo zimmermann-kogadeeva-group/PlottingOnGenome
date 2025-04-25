@@ -1,6 +1,5 @@
-from collections import defaultdict
-
 import matplotlib.pyplot as plt
+import pandas as pd
 import streamlit as st
 
 import plotting_on_genome as pog
@@ -11,21 +10,21 @@ def convert_df(df, **kwargs):
     return df.to_csv(**kwargs).encode("utf-8")
 
 
-def download_tables(all_inserts, insert_type, filter_threshold, buffer, **kwargs):
-    df_inserts = all_inserts.to_dataframe(
-        insert_type=insert_type, filter_threshold=filter_threshold
-    )
-    df_genes = all_inserts.genes_to_dataframe(
-        insert_type=insert_type, filter_threshold=filter_threshold, buffer=buffer
+def download_tables(all_results, insert_type, filter_threshold, buffer, **kwargs):
+    df_inserts = pog.get_inserts_df(all_results, insert_type, filter_threshold)
+
+    df_genes = pog.get_genes_df(all_results, insert_type, filter_threshold, buffer).map(
+        lambda x: ",".join(x) if isinstance(x, list) else x
     )
 
-    counts = defaultdict(
-        int, df_inserts.groupby("insert_matched").insert_matched.count().to_dict()
-    )
     st.write(
-        f"Number of inserts:\n "
-        f"- matched: {counts[True]}\n "
-        f"- unmatched: {counts[False]}"
+        df_inserts.groupby(["genome", "insert_matched"], as_index=False)
+        .agg(num_inserts=pd.NamedAgg("insert_matched", "count"))
+        .pivot(index="insert_matched", columns="genome", values="num_inserts")
+        .reindex(index=[False, True])
+        .rename(index={False: "Unmatched", True: "Matched"})
+        .rename_axis(index="")
+        .fillna(0)
     )
 
     st.download_button(
@@ -55,7 +54,9 @@ def plot_inserts(all_inserts, insert_type, filter_threshold, buffer, **kwargs):
 
     colorbar = st.toggle("Color genes by overlap")
 
-    seq_id = st.selectbox("Select sequence id:", all_inserts.seq_ids)
+    seq_id = st.selectbox(
+        "Select sequence id:", all_inserts.get_insert_ids(insert_type, filter_threshold)
+    )
 
     inserts = all_inserts.get(
         seq_id, insert_type=insert_type, filter_threshold=filter_threshold
@@ -134,8 +135,6 @@ def plot_dists(all_inserts, insert_type, filter_threshold, **kwargs):
 
 
 def show_results():
-    inserts_all = st.session_state.pipeline
-
     insert_type = st.sidebar.selectbox(
         "Insert type:",
         ["both", "matched", "unmatched"],
@@ -166,26 +165,60 @@ def show_results():
         value=4000,
         help="Number of bases either side of the insert",
     )
+
     params = dict(
         insert_type=insert_type, filter_threshold=filter_threshold, buffer=buffer
     )
 
-    if inserts_all is not None:
+    all_results = st.session_state.results
+
+    if all_results is not None:
+
+        res_choice = [
+            name
+            for idx, name in enumerate(all_results.keys())
+            if st.sidebar.checkbox(name, idx == 0)
+        ]
+
         # download all genes and inserts
-        with st.sidebar:
-            download_tables(inserts_all, **params)
+        download_tables({name: all_results[name] for name in res_choice}, **params)
 
-        option = st.selectbox(
-            "plot type:",
-            ["plot inserts", "plot genome", "plot insert dists"],
-            None,
-        )
+        if len(res_choice) == 1:
+            inserts_all = all_results[res_choice[0]]
 
-        if option == "plot inserts":
-            plot_inserts(inserts_all, **params)
+            option = st.selectbox(
+                "plot type:",
+                ["plot inserts", "plot genome", "plot insert dists"],
+                None,
+            )
 
-        elif option == "plot genome":
-            plot_genome(inserts_all, **params)
+            if option == "plot inserts":
+                plot_inserts(inserts_all, **params)
 
-        elif option == "plot insert dists":
-            plot_dists(inserts_all, **params)
+            elif option == "plot genome":
+                plot_genome(inserts_all, **params)
+
+            elif option == "plot insert dists":
+                plot_dists(inserts_all, **params)
+
+        else:
+            # TODO: add choice of seq_id
+            res_subset = {name: all_results[name] for name in res_choice}
+
+            df_insert_presence = pog.get_insert_presence_df(res_subset, **params)
+            with st.expander("Insert presence/absence"):
+                st.write(df_insert_presence)
+
+            seq_id = st.selectbox("Select sequence id:", df_insert_presence.index, None)
+
+            df_inserts = pog.get_inserts_df(res_subset, **params)
+            if seq_id is not None:
+                df_inserts = df_inserts.query("seq_id == @seq_id")
+
+            with st.expander("Inserts info"):
+                st.write(df_inserts)
+
+            fig, ax = plt.subplots(figsize=(10, 10))
+            ax = pog.plot_multiple_genomes(*res_subset.values(), seq_id=seq_id, ax=ax)
+            st.pyplot(fig, use_container_width=True)
+            plt.close()
