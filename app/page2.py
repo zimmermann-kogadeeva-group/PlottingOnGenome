@@ -1,10 +1,7 @@
-from itertools import cycle
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import streamlit as st
-from matplotlib import color_sequences
 
 import plotting_on_genome as pog
 
@@ -191,8 +188,8 @@ def show_results():
             seq_id = None
 
             df_insert_presence = pog.get_insert_presence_df(res_subset, **params)
-            df_inserts = pog.get_inserts_df(all_results, **params)
-            df_genes = pog.get_genes_df(all_results, **params).map(
+            df_inserts = pog.get_inserts_df(res_subset, **params)
+            df_genes = pog.get_genes_df(res_subset, **params).map(
                 lambda x: ",".join(x) if isinstance(x, list) else x
             )
 
@@ -221,7 +218,7 @@ def show_results():
 
                 fig, ax = plt.subplots(figsize=(10, 10))
                 ax = pog.plot_multiple_genomes(
-                    *res_subset.values(), seq_id=seq_id, ax=ax
+                    *res_subset.values(), seq_id=seq_id, ax=ax, **params
                 )
                 st.pyplot(fig, use_container_width=True)
                 plt.close()

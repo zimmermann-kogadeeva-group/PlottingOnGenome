@@ -144,7 +144,8 @@ def get_inserts_df(inserts_dicts, insert_type="both", filter_threshold=None, **k
         for name, x in inserts_dicts.items()
     ]
 
-    return pd.concat(inserts_dfs, ignore_index=True)
+    if len(inserts_dfs):
+        return pd.concat(inserts_dfs, ignore_index=True)
 
 
 def get_insert_presence_df(
@@ -162,8 +163,7 @@ def get_insert_presence_df(
         pd.concat(dfs, ignore_index=True)
         .groupby(["insert_ids", "genome"], as_index=False)
         .agg(num_inserts=pd.NamedAgg("insert_ids", "count"))
-        .pivot(index="insert_ids", columns="genome")
-        .loc[:, ("num_inserts")]
+        .pivot(index="insert_ids", columns="genome", values="num_inserts")
     )
     return df_insert_presence
 
@@ -180,4 +180,5 @@ def get_genes_df(
         for name, x in inserts_dicts.items()
     ]
 
-    return pd.concat(genes_dfs, ignore_index=True)
+    if len(genes_dfs):
+        return pd.concat(genes_dfs, ignore_index=True)

@@ -114,7 +114,13 @@ def plot_dists(
 
 
 def plot_multiple_genomes(
-    *inserts_dict, seq_id=None, palette="tab10", ax=None, **kwargs
+    *inserts_dict,
+    seq_id=None,
+    insert_type="both",
+    filter_threshold=None,
+    palette="tab10",
+    ax=None,
+    **kwargs,
 ):
     if "figsize" not in kwargs:
         kwargs["figsize"] = (10, 8)
@@ -124,10 +130,12 @@ def plot_multiple_genomes(
 
     palette = color_sequences[palette]
     message = "Number of colors in palette is not sufficient for number of genomes"
-    assert len(inserts_dict) == len(palette), message
+    assert len(inserts_dict) <= len(palette), message
 
     res = [
-        ins_dict.get_graphic_features(seq_id, col1=col, col2=col, linecolor=col)
+        ins_dict.get_graphic_features(
+            seq_id, insert_type, filter_threshold, col1=col, col2=col, linecolor=col
+        )
         for ins_dict, col in zip(inserts_dict, palette)
     ]
 
