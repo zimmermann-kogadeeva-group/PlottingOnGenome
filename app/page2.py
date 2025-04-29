@@ -173,9 +173,9 @@ def plot_inserts_dist(data, palette="tab10"):
 
 def show_results():
     params = sidebar_opts()
-    all_results = st.session_state.results
 
-    if all_results is not None:
+    if st.session_state.results is not None:
+        all_results = pog.Comparison(st.session_state.results)
 
         res_choice = [
             name
@@ -184,12 +184,13 @@ def show_results():
         ]
 
         if len(res_choice):
-            res_subset = {name: all_results[name] for name in res_choice}
             seq_id = None
 
-            df_insert_presence = pog.get_insert_presence_df(res_subset, **params)
-            df_inserts = pog.get_inserts_df(res_subset, **params)
-            df_genes = pog.get_genes_df(res_subset, **params).map(
+            df_insert_presence = all_results.get_insert_presence_df(
+                res_choice, **params
+            )
+            df_inserts = all_results.get_inserts_df(res_choice, **params)
+            df_genes = all_results.get_genes_df(res_choice, **params).map(
                 lambda x: ",".join(x) if isinstance(x, list) else x
             )
 
@@ -217,9 +218,7 @@ def show_results():
                     plot_inserts_dist(df_inserts)
 
                 fig, ax = plt.subplots(figsize=(10, 10))
-                ax = pog.plot_multiple_genomes(
-                    *res_subset.values(), seq_id=seq_id, ax=ax, **params
-                )
+                ax = all_results.plot(res_choice, seq_id=seq_id, ax=ax, **params)
                 st.pyplot(fig, use_container_width=True)
                 plt.close()
 
