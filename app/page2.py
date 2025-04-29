@@ -1,6 +1,10 @@
+from itertools import cycle
+
 import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 import streamlit as st
+from matplotlib import color_sequences
 
 import plotting_on_genome as pog
 
@@ -10,12 +14,7 @@ def convert_df(df, **kwargs):
     return df.to_csv(**kwargs).encode("utf-8")
 
 
-def download_tables(all_results, insert_type, filter_threshold, buffer, **kwargs):
-    df_inserts = pog.get_inserts_df(all_results, insert_type, filter_threshold)
-
-    df_genes = pog.get_genes_df(all_results, insert_type, filter_threshold, buffer).map(
-        lambda x: ",".join(x) if isinstance(x, list) else x
-    )
+def download_tables(df_inserts, df_genes):
 
     st.write(
         df_inserts.groupby(["genome", "insert_matched"], as_index=False)
@@ -24,7 +23,7 @@ def download_tables(all_results, insert_type, filter_threshold, buffer, **kwargs
         .reindex(index=[False, True])
         .rename(index={False: "Unmatched", True: "Matched"})
         .rename_axis(index="")
-        .fillna(0),
+        .fillna(0)
     )
 
     st.download_button(
@@ -93,28 +92,6 @@ def plot_inserts(all_inserts, seq_id, insert_type, filter_threshold, buffer, **k
         st.write(f"No inserts found for {seq_id}!")
 
 
-def plot_dists(all_inserts, insert_type, filter_threshold, **kwargs):
-    plot_type = st.radio("Plot type:", ["histogram", "violinplot+boxplot+stripplot"])
-    inserts = all_inserts.get(
-        insert_type=insert_type, filter_threshold=filter_threshold
-    )
-
-    if plot_type == "histogram":
-        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
-        pog.plot_histogram(inserts, axs=axs)
-        st.pyplot(fig)
-
-    elif plot_type == "violinplot+boxplot+stripplot":
-        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
-        pog.plot_dists(inserts, axs=axs)
-        st.pyplot(fig)
-
-    else:
-        raise ValueError("Incorrect plot type")
-
-    plt.close()
-
-
 def sidebar_opts():
     if st.sidebar.button("Reset", use_container_width=True):
         st.session_state.stage = 0
@@ -157,6 +134,46 @@ def sidebar_opts():
     )
 
 
+def plot_inserts_dist(data, palette="tab10"):
+    if len(data) > 1:
+        col1, col2 = st.columns(2)
+        plot_type = "boxplot"
+        sel_col = "insert_length"
+        with col1:
+            plot_type = st.radio("Plot type", ["boxplot", "violinplot", "scatterplot"])
+        with col2:
+            sel_col = st.selectbox("column", ["insert_length", "insert_coverage"])
+
+        fig, ax = plt.subplots()
+        fig.subplots_adjust(bottom=0.3)
+        params = dict(
+            data=data,
+            x="genome",
+            y=sel_col,
+            hue="genome",
+            ax=ax,
+            palette=palette,
+            hue_order=data.get("genome").unique(),
+        )
+
+        if plot_type == "violinplot":
+            sns.violinplot(**params)
+        if plot_type == "boxplot":
+            sns.boxplot(**params)
+        if plot_type == "scatterplot":
+            sns.stripplot(**params, edgecolor="black", linewidth=1)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+        ax.set(
+            ylim=(
+                0.5 * data.get(sel_col).min(),
+                1.2 * data.get(sel_col).max(),
+            )
+        )
+
+        st.pyplot(fig)
+        plt.close()
+
+
 def show_results():
     params = sidebar_opts()
     all_results = st.session_state.results
@@ -168,18 +185,23 @@ def show_results():
             for idx, name in enumerate(all_results.keys())
             if st.sidebar.checkbox(name, idx == 0)
         ]
+
         if len(res_choice):
             res_subset = {name: all_results[name] for name in res_choice}
             seq_id = None
 
             df_insert_presence = pog.get_insert_presence_df(res_subset, **params)
+            df_inserts = pog.get_inserts_df(all_results, **params)
+            df_genes = pog.get_genes_df(all_results, **params).map(
+                lambda x: ",".join(x) if isinstance(x, list) else x
+            )
 
             col1, col2 = st.columns(2)
 
             with col1:
                 st.header("Genome view")
                 # download all genes and inserts
-                download_tables(res_subset, **params)
+                download_tables(df_inserts, df_genes)
 
                 with st.expander("Insert presence/absence table"):
                     st.write(df_insert_presence)
@@ -188,12 +210,14 @@ def show_results():
                     "Select sequence id:", df_insert_presence.index, None
                 )
 
-                df_inserts = pog.get_inserts_df(res_subset, **params)
                 if seq_id is not None:
                     df_inserts = df_inserts.query("seq_id == @seq_id")
 
-                with st.expander("Inserts info table"):
+                with st.expander("Inserts info"):
                     st.write(df_inserts)
+
+                with st.expander("Plot inserts dist"):
+                    plot_inserts_dist(df_inserts)
 
                 fig, ax = plt.subplots(figsize=(10, 10))
                 ax = pog.plot_multiple_genomes(
@@ -201,8 +225,6 @@ def show_results():
                 )
                 st.pyplot(fig, use_container_width=True)
                 plt.close()
-
-                # TODO: add dists plot in this col
 
             with col2:
                 st.header("Insert view")

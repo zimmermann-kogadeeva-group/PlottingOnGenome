@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-streamlit = ["streamlit"]
+streamlit = ["streamlit", "seaborn"]
 
 [project.scripts]
 pog = "plotting_on_genome.__main__:main"
