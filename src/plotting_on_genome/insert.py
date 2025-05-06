@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from dna_features_viewer import (
@@ -9,7 +11,33 @@ from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import LinearSegmentedColormap
 
 from .helper import shift_feature
-from .plotting import fig_axvline
+
+
+def set_feature(feature, **kwargs):
+    """Helper function to set an attribute in Biopython feature"""
+    new_feature = deepcopy(feature)
+    for k, v in kwargs.items():
+        if hasattr(new_feature, k):
+            setattr(new_feature, k, v)
+    return new_feature
+
+
+def fig_axvline(axes, value, ls="--", color="gray", **kwargs):
+    fig = axes[0].get_figure()
+    transFigure = fig.transFigure.inverted()
+
+    coord1 = transFigure.transform(axes[0].transData.transform([value, 0]))
+    coord2 = transFigure.transform(axes[1].transData.transform([value, 0]))
+
+    line = plt.Line2D(
+        (coord1[0], coord2[0]),
+        (coord1[1], coord2[1]),
+        ls=ls,
+        color=color,
+        transform=fig.transFigure,
+        zorder=-100,
+    )
+    fig.lines.append(line)
 
 
 class Insert(object):

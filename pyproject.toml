@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-streamlit = ["streamlit"]
+streamlit = ["streamlit", "seaborn"]
 
 [project.scripts]
 pog = "plotting_on_genome.__main__:main"
@@ -46,3 +46,9 @@ push            = false
 [tool.bumpver.file_patterns]
 "pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
 "src/plotting_on_genome/__init__.py" = ['^__version__ = "{version}"$']
+
+[dependency-groups]
+dev = [
+    "ipympl>=0.8.8",
+    "jupyterlab>=2.3.2",
+]
