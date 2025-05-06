@@ -2,4 +2,4 @@ from .comparison import Comparison
 from .insert import Insert
 from .inserts_dict import InsertsDict
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
