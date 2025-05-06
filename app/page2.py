@@ -180,7 +180,7 @@ def show_results():
         res_choice = [
             name
             for idx, name in enumerate(all_results.keys())
-            if st.sidebar.checkbox(name, idx == 0)
+            if st.sidebar.checkbox(name, True)
         ]
 
         if len(res_choice):
