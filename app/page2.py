@@ -69,22 +69,22 @@ def plot_inserts(all_inserts, seq_id, insert_type, filter_threshold, buffer, **k
 
     if len(inserts):
         for insert in inserts:
-            with st.expander(
+            st.write(
                 f"Insert {insert.idx}: "
                 f"coverage = {insert.coverage:.2f}, "
                 f"matched = {insert.matched}, "
                 f"hit_id = {insert.hit_id}"
-            ):
-                fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[2, 5])
-                fig.suptitle(f"Insert {insert.idx}")
-                axs = insert.plot(
-                    buffer=buffer,
-                    axs=axs,
-                    feature_types=feature_types,
-                    colorbar=colorbar,
-                )
-                st.pyplot(fig)
-                plt.close()
+            )
+            fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[2, 5])
+            fig.suptitle(f"Insert {insert.idx}")
+            axs = insert.plot(
+                buffer=buffer,
+                axs=axs,
+                feature_types=feature_types,
+                colorbar=colorbar,
+            )
+            st.pyplot(fig)
+            plt.close()
     else:
         st.write(f"No inserts found for {seq_id}!")
 
@@ -174,9 +174,12 @@ def plot_inserts_dist(data, palette="tab10"):
 def show_results():
     params = sidebar_opts()
 
+    tabbed = st.sidebar.toggle("Tabbed interface", True)
+
     if st.session_state.results is not None:
         all_results = pog.Comparison(st.session_state.results)
 
+        st.sidebar.write("Genomes:")
         res_choice = [
             name
             for idx, name in enumerate(all_results.keys())
@@ -184,8 +187,6 @@ def show_results():
         ]
 
         if len(res_choice):
-            seq_id = None
-
             df_insert_presence = all_results.get_insert_presence_df(
                 res_choice, **params
             )
@@ -194,10 +195,19 @@ def show_results():
                 lambda x: ",".join(x) if isinstance(x, list) else x
             )
 
-            col1, col2 = st.columns(2)
+            all_clusters = all_results.get_clusters(res_choice, **params)
+            cluster_choices = list(all_clusters.keys())
 
-            with col1:
-                st.header("Genome view")
+            if tabbed:
+                genome_view, insert_view = st.tabs(["Genome view", "Insert view"])
+            else:
+                genome_view, insert_view = st.columns(2)
+
+            seq_id = None
+            with genome_view:
+                if not tabbed:
+                    st.header("Genome view")
+
                 # download all genes and inserts
                 download_tables(df_inserts, df_genes)
 
@@ -205,10 +215,12 @@ def show_results():
                     st.write(df_insert_presence)
 
                 seq_id = st.selectbox(
-                    "Select sequence id:", df_insert_presence.index, None
+                    "Select sequence id:",
+                    df_insert_presence.index.tolist() + cluster_choices,
+                    None,
                 )
 
-                if seq_id is not None:
+                if seq_id is not None and seq_id in df_insert_presence.index:
                     df_inserts = df_inserts.query("seq_id == @seq_id")
 
                 with st.expander("Inserts info"):
@@ -217,13 +229,23 @@ def show_results():
                 with st.expander("Plot inserts dist"):
                     plot_inserts_dist(df_inserts)
 
+                facet = st.toggle("Facet by genomes")
                 fig, ax = plt.subplots(figsize=(10, 10))
                 ax = all_results.plot(res_choice, seq_id=seq_id, ax=ax, **params)
                 st.pyplot(fig, use_container_width=True)
                 plt.close()
 
-            with col2:
-                st.header("Insert view")
+            with insert_view:
+                if not tabbed:
+                    st.header("Insert view")
+                else:
+                    seq_id = st.selectbox(
+                        "Select sequence id:",
+                        df_insert_presence.index.tolist() + cluster_choices,
+                        None,
+                        key="seq_id_insert_view",
+                    )
+
                 if seq_id is not None:
                     genomes_list = (
                         df_insert_presence.loc[seq_id].dropna().index.tolist()

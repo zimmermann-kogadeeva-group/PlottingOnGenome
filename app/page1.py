@@ -36,7 +36,7 @@ def get_main_inputs(workdir=False):
 
     if genome_src == "NCBI":
 
-        col1, col2 = st.columns([0.15, 1])
+        col1, col2 = st.columns([0.25, 0.75])
         with col1:
             if st.button("Add new search term"):
                 st.session_state.search_term_count += 1

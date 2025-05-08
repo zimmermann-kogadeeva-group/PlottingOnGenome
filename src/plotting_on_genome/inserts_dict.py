@@ -11,10 +11,13 @@ from Bio import SeqIO
 from dna_features_viewer import (
     CircularGraphicRecord,
     GraphicFeature,
+    GraphicRecord,
 )
+from matplotlib.colorbar import ColorbarBase
+from matplotlib.colors import LinearSegmentedColormap
 
 from .helper import get_genome, get_genome_file, run_blast, shift_feature
-from .insert import Insert
+from .insert import Insert, fig_axvline
 
 
 def _get_length(fwd, rev):
@@ -160,6 +163,9 @@ class InsertsDict(object):
         self.genome = get_genome(
             self.genome_file, self.genome_fasta, search_term, email, retmax
         )
+        self.total_genome_length = sum(
+            [len(x) for x in self.genome.values() if x.seq.defined]
+        )
 
         # Save the input parameters
         with open(self.work_dir / "parameters.json", "w") as fh:
@@ -241,14 +247,16 @@ class InsertsDict(object):
     def get(
         self,
         seq_id_or_idx=None,
+        insert_index=None,
         insert_type="both",
         filter_threshold=None,
     ):
-        assert insert_type in ("matched", "unmatched", "both")
+        assert insert_type in ("matched", "unmatched", "both"), f"{insert_type=}"
         if seq_id_or_idx is None:
             seq_id_or_idx = self.seq_ids
 
         inserts = self.__getitem__(seq_id_or_idx)
+
         # Apply the coverage filter
         if filter_threshold is not None:
             if not 0 <= filter_threshold <= 1:
@@ -261,9 +269,26 @@ class InsertsDict(object):
         elif insert_type == "unmatched":
             inserts = [x for x in inserts if not x.matched]
 
+        if insert_index is not None:
+            inserts = [x for x in inserts if x.idx == insert_index]
+            if len(inserts) == 0:
+                raise ValueError(f"No insert with index: {insert_index}")
+            elif len(inserts) == 1:
+                inserts = inserts[0]
+            else:
+                raise RuntimeError("Multiple inserts with the same index")
+
         return inserts
 
     def get_insert_ids(self, insert_type="both", filter_threshold=None, **kwargs):
+        return [
+            (x.seq_id, x.idx)
+            for x in self.get(
+                insert_type=insert_type, filter_threshold=filter_threshold
+            )
+        ]
+
+    def get_seq_ids(self, insert_type="both", filter_threshold=None, **kwargs):
         return [
             x.seq_id
             for x in self.get(
@@ -305,11 +330,12 @@ class InsertsDict(object):
     def genes_to_dataframe(
         self,
         seq_id_or_idx=None,
+        insert_index=None,
         insert_type="both",
         filter_threshold=None,
         buffer=4000,
     ):
-        inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
+        inserts = self.get(seq_id_or_idx, insert_index, insert_type, filter_threshold)
 
         df_genes = pd.DataFrame(
             [], columns=("start", "end", "strand", "type", "coverage", "locus_tag")
@@ -326,9 +352,11 @@ class InsertsDict(object):
 
         return df_genes
 
+    # TODO: split this into two: one for genome features and one for insert features
     def get_graphic_features(
         self,
         seq_id_or_idxs=None,
+        insert_index=None,
         insert_type="both",
         filter_threshold=None,
         show_labels=True,
@@ -337,7 +365,7 @@ class InsertsDict(object):
         **kwargs,
     ):
 
-        inserts = self.get(seq_id_or_idxs, insert_type, filter_threshold)
+        inserts = self.get(seq_id_or_idxs, insert_index, insert_type, filter_threshold)
 
         # Get just the sequences for each NCBI record and order them by size in
         # descending order. 'x.features[0]' to get the whole sequence for a
@@ -432,3 +460,92 @@ class InsertsDict(object):
             raise NotImplementedError
 
         return ax
+
+    def cluster(self, insert_type="both", filter_threshold=None):
+        inserts = sorted(
+            self.get(insert_type=insert_type, filter_threshold=filter_threshold),
+            key=lambda x: (x.start, x.end),
+        )
+
+        clusters = []
+        current_cluster = [0]
+        for i in range(1, len(inserts)):
+            current_insert = inserts[i]
+            last_insert = inserts[current_cluster[-1]]
+
+            # Check if the current interval overlaps with the last interval in the
+            # cluster
+            if current_insert.start <= last_insert.end:
+                current_cluster.append(i)
+            else:
+                # If no overlap, start a new cluster
+                clusters.append(current_cluster)
+                current_cluster = [i]
+
+        # Add the last cluster
+        clusters.append(current_cluster)
+
+        # Convert to seq_ids and insert_idx
+        clusters = [
+            [(inserts[i].seq_id, inserts[i].idx) for i in cluster]
+            for cluster in clusters
+        ]
+
+        return clusters
+
+    def plot_multiple_inserts(
+        self,
+        inserts,
+        buffer=4000,
+        col1="#ebf3ed",
+        col2="#2e8b57",
+        feature_types=None,
+        colorbar=False,
+        axs=None,
+        backend="matplotlib",
+        **kwargs,
+    ):
+        cmap = None
+        if colorbar:
+            cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
+
+        features = [x.get_graphic_feature(col2) for x in inserts]
+
+        # Plot the query sequence on the upper axes
+        rec_seqs = GraphicRecord(
+            first_index=inserts[0].start - buffer,
+            sequence_length=inserts[0].end - inserts[0].start + 2 * buffer,
+            features=features,
+        )
+        rec_genes = inserts[0].get_genes_graphic_record(
+            buffer, col1, feature_types, cmap
+        )
+
+        if "figsize" not in kwargs:
+            kwargs["figsize"] = (10, 8)
+
+        if backend == "matplotlib":
+            # Default values for figure size and create the figure
+            if axs is None:
+                fig, axs = plt.subplots(2, 1, **kwargs)
+            else:
+                fig = axs[0].get_figure()
+            assert len(axs) == 2
+
+            # Create a new graphic object for query sequence
+            _ = rec_seqs.plot(ax=axs[0])
+            _ = rec_genes.plot(ax=axs[1])
+
+            if colorbar:
+                ax_cb = fig.add_axes([0.9, 0.1, 0.02, 0.8])
+                fig.subplots_adjust(left=0.1, right=0.85)
+                ColorbarBase(
+                    ax_cb, cmap=cmap, orientation="vertical", label="gene coverage"
+                )
+
+            fig_axvline(axs, inserts[0].start)
+            fig_axvline(axs, inserts[-1].end)
+
+            return axs
+        else:
+            raise NotImplementedError

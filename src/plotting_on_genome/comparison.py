@@ -35,7 +35,7 @@ class Comparison(dict):
 
         dfs = [
             pd.DataFrame(
-                self.__getitem__(key).get_insert_ids(insert_type, filter_threshold),
+                self.__getitem__(key).get_seq_ids(insert_type, filter_threshold),
                 columns=["insert_ids"],
             ).assign(genome=key)
             for key in keys
@@ -49,6 +49,18 @@ class Comparison(dict):
         )
 
         return df_insert_presence
+
+    def get_clusters(
+        self, keys=None, insert_type="both", filter_threshold=None, **kwargs
+    ):
+        if keys is None:
+            keys = self.keys()
+
+        return {
+            f"{key} - cluster {idx}": cluster
+            for key, res in self.items()
+            for idx, cluster in enumerate(res.cluster(insert_type, filter_threshold))
+        }
 
     def get_genes_df(
         self,
@@ -100,7 +112,12 @@ class Comparison(dict):
 
         res = [
             self.__getitem__(key).get_graphic_features(
-                seq_id, insert_type, filter_threshold, col1=col, col2=col, linecolor=col
+                seq_id,
+                insert_type=insert_type,
+                filter_threshold=filter_threshold,
+                col1=col,
+                col2=col,
+                linecolor=col,
             )
             for key, col in zip(keys, palette)
         ]
