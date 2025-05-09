@@ -58,8 +58,10 @@ class Comparison(dict):
 
         return {
             f"{key} - cluster {idx}": cluster
-            for key, res in self.items()
-            for idx, cluster in enumerate(res.cluster(insert_type, filter_threshold))
+            for key in keys
+            for idx, cluster in enumerate(
+                self.__getitem__(key).get_clusters(insert_type, filter_threshold)
+            )
         }
 
     def get_genes_df(

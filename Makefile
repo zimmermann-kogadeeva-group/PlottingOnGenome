@@ -26,7 +26,7 @@ isort:
 	isort src streamlit_app.py
 
 tags:
-	ctags-universal --recurse src
+	ctags-universal --recurse -f .tags src
 
 clean:
 	rm -rf src/*.egg-info/ **/__pycache__/ build/ dist/ report.xml

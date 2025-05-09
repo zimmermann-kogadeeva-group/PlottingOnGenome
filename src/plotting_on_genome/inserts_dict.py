@@ -223,7 +223,10 @@ class InsertsDict(object):
             return self._all_inserts[key]
 
         elif isinstance(key, (tuple, list)):
-            return [insert for k in key for insert in self.__getitem__(k)]
+            if all([isinstance(x, (str, int)) for x in key]):
+                return [insert for k in key for insert in self.__getitem__(k)]
+            if all([isinstance(x, (tuple, list)) for x in key]):
+                return [self._all_inserts[seq_id][ins_idx] for seq_id, ins_idx in key]
 
         elif isinstance(key, slice):
             return self.__getitem__(
@@ -247,7 +250,6 @@ class InsertsDict(object):
     def get(
         self,
         seq_id_or_idx=None,
-        insert_index=None,
         insert_type="both",
         filter_threshold=None,
     ):
@@ -268,15 +270,6 @@ class InsertsDict(object):
             inserts = [x for x in inserts if x.matched]
         elif insert_type == "unmatched":
             inserts = [x for x in inserts if not x.matched]
-
-        if insert_index is not None:
-            inserts = [x for x in inserts if x.idx == insert_index]
-            if len(inserts) == 0:
-                raise ValueError(f"No insert with index: {insert_index}")
-            elif len(inserts) == 1:
-                inserts = inserts[0]
-            else:
-                raise RuntimeError("Multiple inserts with the same index")
 
         return inserts
 
@@ -330,12 +323,11 @@ class InsertsDict(object):
     def genes_to_dataframe(
         self,
         seq_id_or_idx=None,
-        insert_index=None,
         insert_type="both",
         filter_threshold=None,
         buffer=4000,
     ):
-        inserts = self.get(seq_id_or_idx, insert_index, insert_type, filter_threshold)
+        inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
 
         df_genes = pd.DataFrame(
             [], columns=("start", "end", "strand", "type", "coverage", "locus_tag")
@@ -356,7 +348,6 @@ class InsertsDict(object):
     def get_graphic_features(
         self,
         seq_id_or_idxs=None,
-        insert_index=None,
         insert_type="both",
         filter_threshold=None,
         show_labels=True,
@@ -365,7 +356,7 @@ class InsertsDict(object):
         **kwargs,
     ):
 
-        inserts = self.get(seq_id_or_idxs, insert_index, insert_type, filter_threshold)
+        inserts = self.get(seq_id_or_idxs, insert_type, filter_threshold)
 
         # Get just the sequences for each NCBI record and order them by size in
         # descending order. 'x.features[0]' to get the whole sequence for a
@@ -461,41 +452,44 @@ class InsertsDict(object):
 
         return ax
 
-    def cluster(self, insert_type="both", filter_threshold=None):
+    def get_clusters(self, insert_type="both", filter_threshold=None):
         inserts = sorted(
             self.get(insert_type=insert_type, filter_threshold=filter_threshold),
             key=lambda x: (x.start, x.end),
         )
 
-        clusters = []
-        current_cluster = [0]
-        for i in range(1, len(inserts)):
-            current_insert = inserts[i]
-            last_insert = inserts[current_cluster[-1]]
+        if len(inserts):
+            clusters = []
+            current_cluster = [inserts[0]]
+            for i in range(1, len(inserts)):
+                current_insert = inserts[i]
+                last_insert = current_cluster[-1]
 
-            # Check if the current interval overlaps with the last interval in the
-            # cluster
-            if current_insert.start <= last_insert.end:
-                current_cluster.append(i)
-            else:
-                # If no overlap, start a new cluster
-                clusters.append(current_cluster)
-                current_cluster = [i]
+                # Check if the current interval overlaps with the last interval in the
+                # cluster
+                if current_insert.start <= last_insert.end:
+                    current_cluster.append(current_insert)
+                else:
+                    # If no overlap, start a new cluster
+                    clusters.append(current_cluster)
+                    current_cluster = [current_insert]
 
-        # Add the last cluster
-        clusters.append(current_cluster)
+            # Add the last cluster
+            clusters.append(current_cluster)
 
-        # Convert to seq_ids and insert_idx
-        clusters = [
-            [(inserts[i].seq_id, inserts[i].idx) for i in cluster]
-            for cluster in clusters
-        ]
+            return [
+                [(x.seq_id, x.idx) for x in cluster]
+                for cluster in clusters
+                if len(cluster) > 1
+            ]
+        else:
+            return []
 
-        return clusters
-
-    def plot_multiple_inserts(
+    def plot_inserts(
         self,
-        inserts,
+        seq_id_or_idx,
+        insert_type="both",
+        filter_threshold=None,
         buffer=4000,
         col1="#ebf3ed",
         col2="#2e8b57",
@@ -505,16 +499,22 @@ class InsertsDict(object):
         backend="matplotlib",
         **kwargs,
     ):
+
+        inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
         cmap = None
         if colorbar:
             cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
 
         features = [x.get_graphic_feature(col2) for x in inserts]
 
+        # TODO: uncomment and use get_genes from InsertsDict
+        start = inserts[0].start  # min([x.start for x in inserts])
+        end = inserts[0].end  # max([x.end for x in inserts])
+
         # Plot the query sequence on the upper axes
         rec_seqs = GraphicRecord(
-            first_index=inserts[0].start - buffer,
-            sequence_length=inserts[0].end - inserts[0].start + 2 * buffer,
+            first_index=start - buffer,
+            sequence_length=end - start + 2 * buffer,
             features=features,
         )
         rec_genes = inserts[0].get_genes_graphic_record(
