@@ -1,5 +1,5 @@
 from .comparison import Comparison
 from .insert import Insert
-from .inserts_dict import InsertsDict
+from .mapping import Mapping
 
 __version__ = "0.2.9"

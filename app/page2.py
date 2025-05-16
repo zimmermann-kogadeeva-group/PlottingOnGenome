@@ -82,55 +82,6 @@ def download_tables(df_inserts, df_genes):
     )
 
 
-def plot_inserts(all_inserts, seq_id, insert_type, filter_threshold, buffer, **kwargs):
-
-    inserts = all_inserts.get(
-        seq_id, insert_type=insert_type, filter_threshold=filter_threshold
-    )
-
-    # Get a table of genes and display it in the webapp
-    df_genes = all_inserts.genes_to_dataframe(
-        insert_type=insert_type, filter_threshold=filter_threshold, buffer=buffer
-    )
-    with st.expander("Genes table"):
-        st.write(df_genes.query("seq_id == @seq_id"))
-
-    feature_types = set()
-    colorbar = False
-
-    # Get display options from the user
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.checkbox("Display CDS", value=True):
-            feature_types.update(("CDS",))
-    with col2:
-        if st.checkbox("Display genes", value=True):
-            feature_types.update(("gene",))
-    with col3:
-        colorbar = st.checkbox("Color genes by overlap", value=False)
-
-    if len(inserts):
-        for insert in inserts:
-            st.write(
-                f"Insert {insert.idx}: "
-                f"coverage = {insert.coverage:.2f}, "
-                f"matched = {insert.matched}, "
-                f"hit_id = {insert.hit_id}"
-            )
-            fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[2, 5])
-            fig.suptitle(f"Insert {insert.idx}")
-            axs = insert.plot(
-                buffer=buffer,
-                axs=axs,
-                feature_types=feature_types,
-                colorbar=colorbar,
-            )
-            st.pyplot(fig)
-            plt.close()
-    else:
-        st.write(f"No inserts found for {seq_id}!")
-
-
 def plot_inserts_dist(data, palette="tab10"):
     if len(data) > 1:
         col1, col2 = st.columns(2)
@@ -169,6 +120,62 @@ def plot_inserts_dist(data, palette="tab10"):
 
         st.pyplot(fig)
         plt.close(fig)
+
+
+def plot_inserts(
+    all_inserts, genome_choice, seq_id, insert_type, filter_threshold, buffer, **kwargs
+):
+
+    # Get a table of genes and display it in the webapp
+    df_genes = all_inserts.get_genes_df(
+        genome_choice,
+        seq_id,
+        insert_type=insert_type,
+        filter_threshold=filter_threshold,
+        buffer=buffer,
+    )
+    with st.expander("Genes table"):
+        st.write(df_genes)
+
+    feature_types = set()
+    colorbar = False
+
+    # Get display options from the user
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.checkbox("Display CDS", value=True):
+            feature_types.update(("CDS",))
+    with col2:
+        if st.checkbox("Display genes", value=True):
+            feature_types.update(("gene",))
+    with col3:
+        colorbar = st.checkbox("Color genes by overlap", value=False)
+
+    for genome in genome_choice:
+        st.subheader(genome, divider=True)
+        inserts = all_inserts[genome].get(
+            seq_id,
+            insert_type=insert_type,
+            filter_threshold=filter_threshold,
+        )
+        for insert in inserts:
+            st.write(
+                f"Insert {insert.seq_id}: "
+                f"index = {insert.idx}, "
+                f"coverage = {insert.coverage:.2f}, "
+                f"matched = {insert.matched}, "
+                f"hit_id = {insert.hit_id}"
+            )
+            fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[2, 5])
+            fig.suptitle(f"Insert {insert.idx}")
+            axs = insert.plot(
+                buffer=buffer,
+                axs=axs,
+                feature_types=feature_types,
+                colorbar=colorbar,
+            )
+            st.pyplot(fig)
+            plt.close()
 
 
 def plot_multiple_inserts(
@@ -222,8 +229,7 @@ def plot_genomes(
     if not facet:
         fig, ax = plt.subplots(figsize=(10, 10))
         ax = all_inserts.plot(
-            genome_choice,
-            seq_id=seq_id,
+            selection={g: seq_id for g in genome_choice},
             ax=ax,
             insert_type=insert_type,
             filter_threshold=filter_threshold,
@@ -232,7 +238,7 @@ def plot_genomes(
         plt.close()
     else:
         for genome in genome_choice:
-            st.write(genome, seq_id)
+            st.write(f"{genome}:")
             fig, ax = plt.subplots(figsize=(10, 10))
             ax = all_inserts[genome].plot(
                 seq_id_or_idxs=seq_id,
@@ -247,8 +253,12 @@ def plot_genomes(
 def get_inserts_cond(seq_ids):
     return " or ".join(
         [
-            f"(seq_id == '{seq_id}' and  insert_idx == {insert_idx})"
-            for seq_id, insert_idx in seq_ids
+            (
+                f"(seq_id == '{seq_id[0]}' and  insert_idx == {seq_id[1]})"
+                if len(seq_id) == 2
+                else f"seq_id == '{seq_id}'"
+            )
+            for seq_id in seq_ids
         ]
     )
 
@@ -282,7 +292,8 @@ def show_results():
 
             all_clusters = all_results.get_clusters(res_choice, **params)
 
-            seq_id = None
+            sel_seq_id = False
+            seq_id = []
             with genome_view:
                 st.header("Genome view")
 
@@ -292,20 +303,20 @@ def show_results():
                 with st.expander("Insert presence/absence table"):
                     st.write(df_insert_presence)
 
-                seq_id = st.selectbox(
+                # Select inserts
+                seq_id = st.multiselect(
                     "Select sequence id:",
-                    [*df_insert_presence.index, *all_clusters],
+                    # [*insert_presence_df.index, *cluster_ids],
+                    df_insert_presence.index,
                     None,
                 )
+                if not len(seq_id):
+                    seq_id = df_insert_presence.index.tolist()
+                    sel_seq_id = False
+                else:
+                    sel_seq_id = True
 
-                # Conversion from cluster label to genome id and list of insert ids
-                if seq_id in all_clusters:
-                    res_choice = [seq_id.split(" - cluster ")[0]]
-                    seq_id = all_clusters[seq_id]
-
-                if isinstance(seq_id, str) and seq_id in df_insert_presence.index:
-                    df_inserts = df_inserts.query("seq_id == @seq_id")
-                elif isinstance(seq_id, (tuple, list)):
+                if isinstance(seq_id, (tuple, list)) and len(seq_id):
                     df_inserts = df_inserts.query(get_inserts_cond(seq_id))
 
                 with st.expander("Inserts info"):
@@ -319,26 +330,28 @@ def show_results():
             with insert_view:
                 st.header("Insert view")
                 if tabbed:
-                    seq_id = st.selectbox(
+                    seq_id = st.multiselect(
                         "Select sequence id:",
-                        [*df_insert_presence.index, *all_clusters],
+                        # [*insert_presence_df.index, *cluster_ids],
+                        df_insert_presence.index,
                         None,
                         key="seq_id_insert_view",
                     )
+                    if not len(seq_id):
+                        seq_id = df_insert_presence.index.tolist()
+                        sel_seq_id = False
+                    else:
+                        sel_seq_id = True
 
-                    # Conversion from cluster label to genome id and list of insert ids
-                    if seq_id in all_clusters:
-                        res_choice = [seq_id.split(" - cluster ")[0]]
-                        seq_id = all_clusters[seq_id]
+                genomes_list = (
+                    df_insert_presence.loc[seq_id, :]
+                    .dropna(axis=1, how="all")
+                    .columns.tolist()
+                )
 
-                if isinstance(seq_id, str) and seq_id in df_insert_presence.index:
-                    genomes_list = (
-                        df_insert_presence.loc[seq_id].dropna().index.tolist()
-                    )
+                if sel_seq_id:
+                    genome_choice = st.multiselect("Genome:", genomes_list, None)
+                    if not len(genome_choice):
+                        genome_choice = res_choice
 
-                    genome_choice = st.selectbox("Genome:", genomes_list, None)
-                    if genome_choice is not None:
-                        plot_inserts(all_results[genome_choice], seq_id, **params)
-
-                elif isinstance(seq_id, (list, tuple)):
-                    plot_multiple_inserts(all_results, res_choice, seq_id, **params)
+                    plot_inserts(all_results, genome_choice, seq_id, **params)

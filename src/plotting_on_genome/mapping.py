@@ -39,7 +39,7 @@ def _get_contig_label(contig, mapped_ids, show_labels=True):
         return None
 
 
-class InsertsDict(object):
+class Mapping(object):
 
     def _get_paired_inserts(self, seq_id):
         # get all relevant fwd and rev hits from blast
@@ -225,13 +225,19 @@ class InsertsDict(object):
         elif isinstance(key, (tuple, list)):
             if all([isinstance(x, (str, int)) for x in key]):
                 return [insert for k in key for insert in self.__getitem__(k)]
-            if all([isinstance(x, (tuple, list)) for x in key]):
+            elif all([isinstance(x, (tuple, list)) for x in key]):
                 return [self._all_inserts[seq_id][ins_idx] for seq_id, ins_idx in key]
+            else:
+                raise ValueError(
+                    "If key is tuple it is supposed to be list "
+                    "of seq_ids or list of (seq_id, insert_idx) tuples"
+                )
 
         elif isinstance(key, slice):
             return self.__getitem__(
                 [ii for ii in range(*key.indices(len(self.seq_ids)))]
             )
+
         else:
             raise TypeError(f"Invalid argument type: {type(key)}")
 
@@ -273,11 +279,15 @@ class InsertsDict(object):
 
         return inserts
 
-    def get_insert_ids(self, insert_type="both", filter_threshold=None, **kwargs):
+    def get_insert_ids(
+        self, seq_id_or_idx=None, insert_type="both", filter_threshold=None, **kwargs
+    ):
         return [
             (x.seq_id, x.idx)
             for x in self.get(
-                insert_type=insert_type, filter_threshold=filter_threshold
+                seq_id_or_idx=seq_id_or_idx,
+                insert_type=insert_type,
+                filter_threshold=filter_threshold,
             )
         ]
 

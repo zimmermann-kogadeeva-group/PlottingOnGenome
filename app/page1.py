@@ -129,7 +129,7 @@ def run_pipeline(
                 fh.write(b"\n")
 
         try:
-            res = pog.InsertsDict(
+            res = pog.Mapping(
                 seq_file=seq_path,
                 work_dir=dirpath,
                 genome_file=genome_path,
