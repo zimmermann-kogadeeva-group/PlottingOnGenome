@@ -150,40 +150,29 @@ class Insert(object):
             ]
         )
 
-    def get_graphic_records(
-        self, buffer=4000, col1="#ebf3ed", col2="#2e8b57", feature_types=None, cmap=None
+    def get_graphic_feature(self, col="#2e8b57"):
+        return GraphicFeature(
+            start=self.start,
+            end=self.end,
+            strand=self.strand,
+            color=col,
+            label=self.seq_id,
+        )
+
+    # TODO: col1, col2, cmap - simplify
+    def get_genes_graphic_record(
+        self, buffer=4000, col="#ebf3ed", feature_types=None, cmap=None
     ):
         genes = self.get_genes(buffer)
         if feature_types is None:
             feature_types = {x.type for x in genes}
-
-        # Create a new graphic object for query sequence
-        features = [
-            GraphicFeature(
-                start=self.start,
-                end=self.end,
-                strand=self.strand,
-                color=col2,
-                label=self.seq_id,
-            )
-        ]
-
-        # Plot the query sequence on the upper axes
-        record_seq = GraphicRecord(
-            first_index=self.start - buffer,
-            sequence_length=self.end - self.start + 2 * buffer,
-            features=features,
-        )
-
-        # Create graphic objects for all the genes and CDSes using
-        # dna_features_viewer.BiopythonTranslator()
 
         if cmap is not None:
             for i, gene in enumerate(genes):
                 genes[i].qualifiers["color"] = cmap(self._get_gene_coverage(gene))
 
         conv = BiopythonTranslator()
-        conv.default_feature_color = col1
+        conv.default_feature_color = col
         features = [conv.translate_feature(x) for x in genes if x.type in feature_types]
 
         # Plot the genes and CDSes in the region of the mapped sequence
@@ -192,8 +181,7 @@ class Insert(object):
             sequence_length=self.end - self.start + 2 * buffer,
             features=features,
         )
-
-        return record_seq, record_hits
+        return record_hits
 
     def plot(
         self,
@@ -211,7 +199,14 @@ class Insert(object):
         if colorbar:
             cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
 
-        seqs, hits = self.get_graphic_records(buffer, col1, col2, feature_types, cmap)
+        # Plot the query sequence on the upper axes
+        rec_seq = GraphicRecord(
+            first_index=self.start - buffer,
+            sequence_length=self.end - self.start + 2 * buffer,
+            features=[self.get_graphic_feature(col2)],
+        )
+        rec_genes = self.get_genes_graphic_record(buffer, col1, feature_types, cmap)
+
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
 
@@ -224,8 +219,8 @@ class Insert(object):
             assert len(axs) == 2
 
             # Create a new graphic object for query sequence
-            _ = seqs.plot(ax=axs[0])
-            _ = hits.plot(ax=axs[1])
+            _ = rec_seq.plot(ax=axs[0])
+            _ = rec_genes.plot(ax=axs[1])
 
             if colorbar:
                 ax_cb = fig.add_axes([0.9, 0.1, 0.02, 0.8])

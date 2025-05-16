@@ -11,34 +11,52 @@ class Comparison(dict):
     def __init__(self, *args, **kwargs):
         super(Comparison, self).__init__(*args, **kwargs)
 
-    def get_inserts_df(
-        self, keys=None, insert_type="both", filter_threshold=None, **kwargs
+    def get_inserts(
+        self, selection=None, insert_type="both", filter_threshold=None, **kwargs
     ):
-        if keys is None:
-            keys = self.keys()
+        if selection is None:
+            selection = list(self.keys())
+
+        if isinstance(selection, (list, tuple)):
+            selection = {x: None for x in selection}
+
+        return [
+            self.__getitem__(sel).get(
+                insert_ids,
+                insert_type=insert_type,
+                filter_threshold=filter_threshold,
+            )
+            for sel, insert_ids in selection.items()
+        ]
+
+    def get_inserts_df(
+        self, selection=None, insert_type="both", filter_threshold=None, **kwargs
+    ):
+        if selection is None:
+            selection = self.keys()
 
         inserts_dfs = [
-            self.__getitem__(key)
+            self.__getitem__(sel)
             .to_dataframe(insert_type=insert_type, filter_threshold=filter_threshold)
-            .assign(genome=key)
-            for key in keys
+            .assign(genome=sel)
+            for sel in selection
         ]
 
         if len(inserts_dfs):
             return pd.concat(inserts_dfs, ignore_index=True)
 
     def get_insert_presence_df(
-        self, keys=None, insert_type="both", filter_threshold=None, **kwargs
+        self, selection=None, insert_type="both", filter_threshold=None, **kwargs
     ):
-        if keys is None:
-            keys = self.keys()
+        if selection is None:
+            selection = self.keys()
 
         dfs = [
             pd.DataFrame(
-                self.__getitem__(key).get_insert_ids(insert_type, filter_threshold),
+                self.__getitem__(sel).get_seq_ids(insert_type, filter_threshold),
                 columns=["insert_ids"],
-            ).assign(genome=key)
-            for key in keys
+            ).assign(genome=sel)
+            for sel in selection
         ]
 
         df_insert_presence = (
@@ -50,9 +68,24 @@ class Comparison(dict):
 
         return df_insert_presence
 
+    def get_clusters(
+        self, selection=None, insert_type="both", filter_threshold=None, **kwargs
+    ):
+        if selection is None:
+            selection = self.keys()
+
+        return {
+            (sel, idx): cluster
+            for sel in selection
+            for idx, cluster in enumerate(
+                self.__getitem__(sel).get_clusters(insert_type, filter_threshold)
+            )
+        }
+
     def get_genes_df(
         self,
         keys=None,
+        seq_id=None,
         insert_type="both",
         filter_threshold=None,
         buffer=None,
@@ -64,6 +97,7 @@ class Comparison(dict):
         genes_dfs = [
             self.__getitem__(key)
             .genes_to_dataframe(
+                seq_id,
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
                 buffer=buffer,
@@ -77,16 +111,18 @@ class Comparison(dict):
 
     def plot(
         self,
-        keys=None,
-        seq_id=None,
+        selection=None,
         insert_type="both",
         filter_threshold=None,
         palette="tab10",
         ax=None,
         **kwargs,
     ):
-        if keys is None:
-            keys = self.keys()
+        if selection is None:
+            selection = list(self.keys())
+
+        if isinstance(selection, (list, tuple)):
+            selection = {x: None for x in selection}
 
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
@@ -100,9 +136,14 @@ class Comparison(dict):
 
         res = [
             self.__getitem__(key).get_graphic_features(
-                seq_id, insert_type, filter_threshold, col1=col, col2=col, linecolor=col
+                insert_ids,
+                insert_type=insert_type,
+                filter_threshold=filter_threshold,
+                col1=col,
+                col2=col,
+                linecolor=col,
             )
-            for key, col in zip(keys, palette)
+            for (key, insert_ids), col in zip(selection.items(), palette)
         ]
 
         features = list(chain.from_iterable([x[1] for x in res]))

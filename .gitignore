@@ -19,7 +19,7 @@ test.ipynb
 worktrees/
 notes.md
 .DS_Store
-tags
+.tags
 *~
 *.swp
 .envrc
