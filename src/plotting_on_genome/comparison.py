@@ -1,4 +1,4 @@
-from itertools import chain
+from itertools import chain, cycle
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -115,7 +115,9 @@ class Comparison(dict):
         insert_type="both",
         filter_threshold=None,
         palette="tab10",
-        ax=None,
+        facet_wrap=None,
+        genomes_order=None,
+        fig=None,
         **kwargs,
     ):
         if selection is None:
@@ -124,31 +126,48 @@ class Comparison(dict):
         if isinstance(selection, (list, tuple)):
             selection = {x: None for x in selection}
 
+        if genomes_order is None:
+            genomes_order = list(selection.keys())
+
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
 
-        if ax is None:
-            fig, ax = plt.subplots(**kwargs)
+        num_genomes = len(selection)
+        nrows, ncols = 1, 1
+        if facet_wrap is not None:
+            ncols = min(facet_wrap, num_genomes)
+            nrows = num_genomes // ncols
 
-        palette = color_sequences[palette]
-        message = "Number of colors in palette is not sufficient for number of genomes"
-        assert len(self) <= len(palette), message
+        if fig is None:
+            fig, axs = plt.subplots(nrows=nrows, ncols=ncols, **kwargs)
+        else:
+            axs = fig.get_axes()
+
+        palette = cycle(color_sequences[palette])
 
         res = [
             self.__getitem__(key).get_graphic_features(
-                insert_ids,
+                selection[key],
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
                 col1=col,
                 col2=col,
                 linecolor=col,
             )
-            for (key, insert_ids), col in zip(selection.items(), palette)
+            for key, col in zip(genomes_order, palette)
         ]
 
-        features = list(chain.from_iterable([x[1] for x in res]))
-        rec = CircularGraphicRecord(max([x[0] for x in res]), features)
+        if facet_wrap is None:
+            features = list(chain.from_iterable([x[1] for x in res]))
+            rec = CircularGraphicRecord(max([x[0] for x in res]), features)
+            _ = rec.plot(axs, annotate_inline=False)
+        else:
+            for (seq_len, features), ax in zip(res, axs.flatten()):
+                rec = CircularGraphicRecord(seq_len, features)
+                _ = rec.plot(ax, annotate_inline=False)
 
-        _ = rec.plot(ax, annotate_inline=False)
+            # Remove redundant axis
+            for ax in axs.flatten()[num_genomes:]:
+                ax.axis("off")
 
-        return ax
+        return fig

@@ -4,7 +4,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY . /app
+COPY app/ src/ pyproject.toml /app
 
 # Installing deps
 RUN apt-get update && apt-get install -y \
@@ -25,7 +25,7 @@ RUN curl https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.16.0/ncbi-blast
 ENV PATH="${PATH}:/opt/ncbi-blast-2.16.0+/bin"
 
 # Cleaning up
-RUN apt remove --purge -y curl zip && rm -rf /var/lib/apt/lists/*
+RUN apt remove --purge -y curl zip && apt clean && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8501
 

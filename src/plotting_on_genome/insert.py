@@ -79,7 +79,7 @@ class Insert(object):
         self.query_id = self.hsp1.query_id
         self.seq_id = seq_id
         self.idx = idx
-        self.matched = True if hsp2 is not None else False
+        self.paired = True if hsp2 is not None else False
 
         if paired:
             self.start, self.end = self._get_endpoints(hsp1, hsp2, avg_insert_len)
@@ -102,7 +102,7 @@ class Insert(object):
             f"end={self.end}, "
             f"hit_id={self.hit_id}, "
             f"coverage={self.coverage:.2f}, "
-            f"matched={self.matched})"
+            f"paired={self.paired})"
         )
 
     def __len__(self):

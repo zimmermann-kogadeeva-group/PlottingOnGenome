@@ -19,12 +19,12 @@ def sidebar_opts():
 
     insert_type = st.sidebar.selectbox(
         "Insert type:",
-        ["both", "matched", "unmatched"],
+        ["both", "paired", "unpaired"],
         help=(
-            "There are two types of inserts: matched and unmatched. Matched are when "
-            "both forward and reverse sequences could be matched to one another. "
-            "Unmatched are cases when either forward or reverse sequence could not be "
-            "matched to the corresponding one."
+            "There are two types of inserts: paired and unpaired. Paired are when "
+            "both forward and reverse sequences could be paired to one another. "
+            "Unpaired are cases when either forward or reverse sequence could not be "
+            "paired to the corresponding one."
         ),
     )
 
@@ -56,11 +56,11 @@ def sidebar_opts():
 def download_tables(df_inserts, df_genes):
 
     st.write(
-        df_inserts.groupby(["genome", "insert_matched"], as_index=False)
-        .agg(num_inserts=pd.NamedAgg("insert_matched", "count"))
-        .pivot(index="insert_matched", columns="genome", values="num_inserts")
+        df_inserts.groupby(["genome", "insert_paired"], as_index=False)
+        .agg(num_inserts=pd.NamedAgg("seq_id", "nunique"))
+        .pivot(index="insert_paired", columns="genome", values="num_inserts")
         .reindex(index=[False, True])
-        .rename(index={False: "Unmatched", True: "Matched"})
+        .rename(index={False: "Unpaired", True: "Paired"})
         .rename_axis(index="")
         .fillna(0)
     )
@@ -163,7 +163,7 @@ def plot_inserts(
                 f"Insert {insert.seq_id}: "
                 f"index = {insert.idx}, "
                 f"coverage = {insert.coverage:.2f}, "
-                f"matched = {insert.matched}, "
+                f"paired = {insert.paired}, "
                 f"hit_id = {insert.hit_id}"
             )
             fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[2, 5])
@@ -206,7 +206,7 @@ def plot_multiple_inserts(
         st.write(
             f"Insert {insert.seq_id} with index {insert.idx}: "
             f"coverage = {insert.coverage:.2f}, "
-            f"matched = {insert.matched}, "
+            f"paired = {insert.paired}, "
             f"hit_id = {insert.hit_id}"
         )
     axs = res.plot_inserts(
@@ -225,29 +225,23 @@ def plot_multiple_inserts(
 def plot_genomes(
     all_inserts, genome_choice, seq_id, insert_type, filter_threshold, buffer, **kwargs
 ):
-    facet = st.toggle("Separate plot for each genome")
-    if not facet:
-        fig, ax = plt.subplots(figsize=(10, 10))
-        ax = all_inserts.plot(
-            selection={g: seq_id for g in genome_choice},
-            ax=ax,
-            insert_type=insert_type,
-            filter_threshold=filter_threshold,
-        )
-        st.pyplot(fig, use_container_width=True)
-        plt.close()
-    else:
-        for genome in genome_choice:
-            st.write(f"{genome}:")
-            fig, ax = plt.subplots(figsize=(10, 10))
-            ax = all_inserts[genome].plot(
-                seq_id_or_idxs=seq_id,
-                ax=ax,
-                insert_type=insert_type,
-                filter_threshold=filter_threshold,
-            )
-            st.pyplot(fig, use_container_width=True)
-            plt.close()
+    col1, col2 = st.columns(2, vertical_alignment="center")
+    facet = False
+    num_cols = None
+    with col1:
+        facet = st.toggle("Separate plot for each genome")
+    if facet:
+        with col2:
+            num_cols = st.number_input("Number of columns", value=3)
+
+    fig = all_inserts.plot(
+        selection={g: seq_id for g in genome_choice},
+        insert_type=insert_type,
+        filter_threshold=filter_threshold,
+        facet_wrap=num_cols,
+    )
+    st.pyplot(fig, use_container_width=True)
+    plt.close()
 
 
 def get_inserts_cond(seq_ids):
