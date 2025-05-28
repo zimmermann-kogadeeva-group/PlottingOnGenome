@@ -259,7 +259,7 @@ class Mapping(object):
         insert_type="both",
         filter_threshold=None,
     ):
-        assert insert_type in ("matched", "unmatched", "both"), f"{insert_type=}"
+        assert insert_type in ("paired", "unpaired", "both"), f"{insert_type=}"
         if seq_id_or_idx is None:
             seq_id_or_idx = self.seq_ids
 
@@ -272,10 +272,10 @@ class Mapping(object):
 
             inserts = [x for x in inserts if x.coverage > filter_threshold]
 
-        if insert_type == "matched":
-            inserts = [x for x in inserts if x.matched]
-        elif insert_type == "unmatched":
-            inserts = [x for x in inserts if not x.matched]
+        if insert_type == "paired":
+            inserts = [x for x in inserts if x.paired]
+        elif insert_type == "unpaired":
+            inserts = [x for x in inserts if not x.paired]
 
         return inserts
 
@@ -311,7 +311,7 @@ class Mapping(object):
                     x.strand,
                     len(x),
                     x.coverage,
-                    x.matched,
+                    x.paired,
                 )
                 for x in self.get(
                     insert_type=insert_type, filter_threshold=filter_threshold
@@ -326,7 +326,7 @@ class Mapping(object):
                 "insert_strand",
                 "insert_length",
                 "insert_coverage",
-                "insert_matched",
+                "insert_paired",
             ),
         )
 
