@@ -78,8 +78,6 @@ def get_main_inputs(workdir=False):
         "workdir": workdir_path,
     }
 
-    st.write(search_terms)
-
     all_inputs = []
     if search_terms is not None:
         all_inputs = {
