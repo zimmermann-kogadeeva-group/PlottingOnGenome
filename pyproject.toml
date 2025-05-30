@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plotting_on_genome"
-version = "0.2.9"
+version = "0.4.3"
 requires-python = ">=3.6"
 description = "Package for making genome related plots"
 readme = "README.md"
@@ -18,7 +18,6 @@ dependencies = [
     "matplotlib",
     "pandas",
     "platformdirs",
-    "seaborn",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +35,7 @@ profile = "black"
 src_paths = ["src", "tests"]
 
 [tool.bumpver]
-current_version = "0.2.9"
+current_version = "0.4.3"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message  = "Bump version {old_version} -> {new_version}"
 commit          = true

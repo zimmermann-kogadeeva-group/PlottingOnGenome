@@ -36,18 +36,10 @@ def get_main_inputs(workdir=False):
 
     if genome_src == "NCBI":
 
-        col1, col2 = st.columns([0.25, 0.75])
-        with col1:
-            if st.button("Add new search term"):
-                st.session_state.search_term_count += 1
-        with col2:
-            if st.button("Remove search term"):
-                st.session_state.search_term_count -= 1
-
-        search_terms = [
-            st.text_input(f"Search term for genome {i+1}:", key=f"search_term_{i}")
-            for i in range(st.session_state.search_term_count)
-        ]
+        search_terms = st.text_input(
+            "Search term for genome (separete different search terms with a comma):",
+            key="search_term",
+        ).split(",")
 
         email = st.text_input("Email:", key="email")
         retmax = st.text_input(
@@ -85,6 +77,8 @@ def get_main_inputs(workdir=False):
         "rev_suf": rev_suf,
         "workdir": workdir_path,
     }
+
+    st.write(search_terms)
 
     all_inputs = []
     if search_terms is not None:
