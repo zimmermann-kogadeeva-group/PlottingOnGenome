@@ -10,9 +10,6 @@ st.set_page_config(layout="wide")
 if "stage" not in st.session_state:
     st.session_state.stage = 0
 
-if "search_term_count" not in st.session_state:
-    st.session_state.search_term_count = 1
-
 
 def submit(*args):
     with st.spinner("Processing..."):

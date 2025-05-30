@@ -2,9 +2,16 @@
 
 FROM python:3.12-slim
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 WORKDIR /app
 
-COPY app/ src/ pyproject.toml /app
+COPY pyproject.toml /app
+COPY app/ /app/app/
+COPY src/ /app/src/
+
+# Installing pog package
+RUN uv sync --extra streamlit
 
 # Installing deps
 RUN apt-get update && apt-get install -y \
@@ -13,16 +20,13 @@ RUN apt-get update && apt-get install -y \
     zip \
     software-properties-common
 
-# Installing pog package
-RUN pip install --no-cache ".[streamlit]"
-
 # Adding BLAST
 RUN curl https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.16.0/ncbi-blast-2.16.0+-x64-linux.tar.gz -o blast.tar.gz && \
     tar -C /opt/ -zxvf blast.tar.gz && \
     rm blast.tar.gz
 
 # Updating path env var
-ENV PATH="${PATH}:/opt/ncbi-blast-2.16.0+/bin"
+ENV PATH="/app/.venv/bin:/opt/ncbi-blast-2.16.0+/bin:${PATH}"
 
 # Cleaning up
 RUN apt remove --purge -y curl zip && apt clean && rm -rf /var/lib/apt/lists/*

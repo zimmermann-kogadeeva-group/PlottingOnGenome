@@ -18,7 +18,6 @@ dependencies = [
     "matplotlib",
     "pandas",
     "platformdirs",
-    "seaborn",
 ]
 
 [project.optional-dependencies]
