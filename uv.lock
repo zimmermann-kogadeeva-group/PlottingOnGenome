@@ -5405,7 +5405,7 @@ wheels = [
 
 [[package]]
 name = "plotting-on-genome"
-version = "0.2.9"
+version = "0.4.3"
 source = { editable = "." }
 dependencies = [
     { name = "bcbio-gff" },
@@ -5428,9 +5428,6 @@ dependencies = [
     { name = "platformdirs", version = "4.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.7.*'" },
     { name = "platformdirs", version = "4.3.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.8.*'" },
     { name = "platformdirs", version = "4.3.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-    { name = "seaborn", version = "0.11.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.7'" },
-    { name = "seaborn", version = "0.12.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.7.*'" },
-    { name = "seaborn", version = "0.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.8'" },
 ]
 
 [package.optional-dependencies]
@@ -5464,7 +5461,6 @@ requires-dist = [
     { name = "matplotlib" },
     { name = "pandas" },
     { name = "platformdirs" },
-    { name = "seaborn" },
     { name = "seaborn", marker = "extra == 'streamlit'" },
     { name = "streamlit", marker = "extra == 'streamlit'" },
 ]
