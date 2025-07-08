@@ -225,19 +225,22 @@ def plot_multiple_inserts(
 def plot_genomes(
     all_inserts, genome_choice, seq_id, insert_type, filter_threshold, buffer, **kwargs
 ):
-    col1, col2 = st.columns(2, vertical_alignment="center")
-    facet = False
+    show_labels, show_titles = True, True
     num_cols = None
-    with col1:
-        facet = st.toggle("Separate plot for each genome")
-    if facet:
-        with col2:
+    with st.expander("Plotting options"):
+        show_labels = st.toggle("Show contig labels", value=True)
+        show_titles = st.toggle("Show genome labels", value=True)
+
+        facet = st.toggle("Separate plot for each genome", value=False)
+        if facet:
             num_cols = st.number_input("Number of columns", value=3)
 
     fig = all_inserts.plot(
         selection={g: seq_id for g in genome_choice},
         insert_type=insert_type,
         filter_threshold=filter_threshold,
+        show_labels=show_labels,
+        show_titles=show_titles,
         facet_wrap=num_cols,
     )
     st.pyplot(fig, use_container_width=True)

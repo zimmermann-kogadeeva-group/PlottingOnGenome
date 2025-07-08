@@ -11,14 +11,13 @@ COPY app/ /app/app/
 COPY src/ /app/src/
 
 # Installing pog package
-RUN uv sync --extra streamlit
+RUN uv sync --extra streamlit --no-dev --no-cache
 
 # Installing deps
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    zip \
-    software-properties-common
+    zip
 
 # Adding BLAST
 RUN curl https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.16.0/ncbi-blast-2.16.0+-x64-linux.tar.gz -o blast.tar.gz && \

@@ -1,6 +1,7 @@
 from itertools import chain, cycle
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from dna_features_viewer import CircularGraphicRecord
 from matplotlib import color_sequences
@@ -114,6 +115,8 @@ class Comparison(dict):
         selection=None,
         insert_type="both",
         filter_threshold=None,
+        show_labels=True,
+        show_titles=False,
         palette="tab10",
         facet_wrap=None,
         genomes_order=None,
@@ -143,6 +146,10 @@ class Comparison(dict):
         else:
             axs = fig.get_axes()
 
+        # Check that axs is iterable even if a single axes object
+        if isinstance(axs, plt.Axes):
+            axs = np.array([axs])
+
         palette = cycle(color_sequences[palette])
 
         res = [
@@ -150,6 +157,7 @@ class Comparison(dict):
                 selection[key],
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
+                show_labels=show_labels,
                 col1=col,
                 col2=col,
                 linecolor=col,
@@ -160,14 +168,18 @@ class Comparison(dict):
         if facet_wrap is None:
             features = list(chain.from_iterable([x[1] for x in res]))
             rec = CircularGraphicRecord(max([x[0] for x in res]), features)
-            _ = rec.plot(axs, annotate_inline=False)
+            _ = rec.plot(axs[0], annotate_inline=False)
         else:
-            for (seq_len, features), ax in zip(res, axs.flatten()):
+            for (seq_len, features), ax in zip(res, axs):
                 rec = CircularGraphicRecord(seq_len, features)
                 _ = rec.plot(ax, annotate_inline=False)
 
             # Remove redundant axis
-            for ax in axs.flatten()[num_genomes:]:
+            for ax in axs[num_genomes:]:
                 ax.axis("off")
+
+        if show_titles:
+            for title, ax in zip(genomes_order, axs):
+                ax.set_title(title)
 
         return fig
