@@ -170,7 +170,7 @@ class Comparison(dict):
             rec = CircularGraphicRecord(max([x[0] for x in res]), features)
             _ = rec.plot(axs[0], annotate_inline=False)
         else:
-            for (seq_len, features), ax in zip(res, axs):
+            for (seq_len, features), ax in zip(res, axs.flatten()):
                 rec = CircularGraphicRecord(seq_len, features)
                 _ = rec.plot(ax, annotate_inline=False)
 
