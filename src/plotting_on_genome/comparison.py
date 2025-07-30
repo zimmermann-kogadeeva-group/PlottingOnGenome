@@ -169,17 +169,20 @@ class Comparison(dict):
             features = list(chain.from_iterable([x[1] for x in res]))
             rec = CircularGraphicRecord(max([x[0] for x in res]), features)
             _ = rec.plot(axs[0], annotate_inline=False)
+            axs[0].set_title(", ".join(genomes_order))
+
         else:
             for (seq_len, features), ax in zip(res, axs.flatten()):
                 rec = CircularGraphicRecord(seq_len, features)
                 _ = rec.plot(ax, annotate_inline=False)
 
+            # Set titles
+            if show_titles:
+                for title, ax in zip(genomes_order, axs):
+                    ax.set_title(title)
+
             # Remove redundant axis
             for ax in axs[num_genomes:]:
                 ax.axis("off")
-
-        if show_titles:
-            for title, ax in zip(genomes_order, axs):
-                ax.set_title(title)
 
         return fig

@@ -141,15 +141,16 @@ def plot_inserts(
     colorbar = False
 
     # Get display options from the user
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.checkbox("Display CDS", value=True):
+    col1, col2 = "#ebf3ed", "#2e8b57"
+    with st.expander("Plotting options"):
+        if st.toggle("Display CDS", value=True):
             feature_types.update(("CDS",))
-    with col2:
-        if st.checkbox("Display genes", value=True):
+        if st.toggle("Display genes", value=True):
             feature_types.update(("gene",))
-    with col3:
-        colorbar = st.checkbox("Color genes by overlap", value=False)
+        colorbar = st.toggle("Color genes by overlap", value=False)
+        if colorbar:
+            col2 = st.color_picker("Inserts color:", value=col2)
+            col1 = st.color_picker("Genes/CDS color:", value=col1)
 
     for genome in genome_choice:
         st.subheader(genome, divider=True)
@@ -173,6 +174,8 @@ def plot_inserts(
                 axs=axs,
                 feature_types=feature_types,
                 colorbar=colorbar,
+                col1=col1,
+                col2=col2,
             )
             st.pyplot(fig)
             plt.close()
@@ -227,10 +230,10 @@ def plot_genomes(
 ):
     show_labels, show_titles = True, True
     num_cols = None
+
     with st.expander("Plotting options"):
         show_labels = st.toggle("Show contig labels", value=True)
         show_titles = st.toggle("Show genome labels", value=True)
-
         facet = st.toggle("Separate plot for each genome", value=False)
         if facet:
             num_cols = st.number_input("Number of columns", value=3)
@@ -262,6 +265,7 @@ def get_inserts_cond(seq_ids):
 
 def show_results():
     params = sidebar_opts()
+
     tabbed = st.sidebar.toggle("Tabbed interface", True)
     if tabbed:
         genome_view, insert_view = st.tabs(["Genome view", "Insert view"])
