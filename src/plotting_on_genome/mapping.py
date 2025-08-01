@@ -215,6 +215,12 @@ class Mapping(object):
                 seq_id: self._get_single_inserts(seq_id) for seq_id in self.seq_ids
             }
 
+        self.seq_to_ins_dict = {
+            seq_id: [(x.seq_id, x.idx) for x in inserts]
+            for seq_id, inserts in self._all_inserts.items()
+            if len(inserts)
+        }
+
     def __getitem__(self, key):
         if isinstance(key, int):
             return self._all_inserts[self.seq_ids[key]]
@@ -223,15 +229,18 @@ class Mapping(object):
             return self._all_inserts[key]
 
         elif isinstance(key, (tuple, list)):
-            if all([isinstance(x, (str, int)) for x in key]):
-                return [insert for k in key for insert in self.__getitem__(k)]
-            elif all([isinstance(x, (tuple, list)) for x in key]):
-                return [self._all_inserts[seq_id][ins_idx] for seq_id, ins_idx in key]
-            else:
-                raise ValueError(
-                    "If key is tuple it is supposed to be list "
-                    "of seq_ids or list of (seq_id, insert_idx) tuples"
-                )
+            by_str = [
+                insert
+                for k in key
+                for insert in self.__getitem__(k)
+                if isinstance(k, (str, int))
+            ]
+            by_tup = [
+                self._all_inserts[k[0]][k[1]]
+                for k in key
+                if isinstance(k, (tuple, list)) and k[1] < len(self._all_inserts[k[0]])
+            ]
+            return by_str + by_tup
 
         elif isinstance(key, slice):
             return self.__getitem__(

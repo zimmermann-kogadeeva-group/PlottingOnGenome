@@ -5405,7 +5405,7 @@ wheels = [
 
 [[package]]
 name = "plotting-on-genome"
-version = "0.4.4"
+version = "0.4.7"
 source = { editable = "." }
 dependencies = [
     { name = "bcbio-gff" },

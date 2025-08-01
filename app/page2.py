@@ -1,3 +1,5 @@
+from itertools import chain
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -48,9 +50,22 @@ def sidebar_opts():
         help="Number of bases either side of the insert",
     )
 
-    return dict(
+    params = dict(
         insert_type=insert_type, filter_threshold=filter_threshold, buffer=buffer
     )
+
+    return params
+
+
+def genome_selection(genome_labels):
+    st.sidebar.write("Genomes:")
+    res_choice = [
+        name
+        for idx, name in enumerate(genome_labels)
+        if st.sidebar.checkbox(name, True)
+    ]
+
+    return res_choice
 
 
 def download_tables(df_inserts, df_genes):
@@ -141,16 +156,16 @@ def plot_inserts(
     colorbar = False
 
     # Get display options from the user
-    col1, col2 = "#ebf3ed", "#2e8b57"
     with st.expander("Plotting options"):
         if st.toggle("Display CDS", value=True):
             feature_types.update(("CDS",))
         if st.toggle("Display genes", value=True):
             feature_types.update(("gene",))
+
         colorbar = st.toggle("Color genes by overlap", value=False)
-        if colorbar:
-            col2 = st.color_picker("Inserts color:", value=col2)
-            col1 = st.color_picker("Genes/CDS color:", value=col1)
+
+        col1 = st.color_picker("Genes/CDS color:", value="#ebf3ed")
+        col2 = st.color_picker("Inserts color:", value="#2e8b57")
 
     for genome in genome_choice:
         st.subheader(genome, divider=True)
@@ -264,23 +279,19 @@ def get_inserts_cond(seq_ids):
 
 
 def show_results():
-    params = sidebar_opts()
-
-    tabbed = st.sidebar.toggle("Tabbed interface", True)
-    if tabbed:
-        genome_view, insert_view = st.tabs(["Genome view", "Insert view"])
-    else:
-        genome_view, insert_view = st.columns(2)
 
     if st.session_state.results is not None:
         all_results = pog.Comparison(st.session_state.results)
 
-        st.sidebar.write("Genomes:")
-        res_choice = [
-            name
-            for idx, name in enumerate(all_results.keys())
-            if st.sidebar.checkbox(name, True)
-        ]
+        params = sidebar_opts()
+
+        tabbed = st.sidebar.toggle("Tabbed interface", True)
+        if tabbed:
+            genome_view, insert_view = st.tabs(["Genome view", "Insert view"])
+        else:
+            genome_view, insert_view = st.columns(2)
+
+        res_choice = genome_selection(all_results.keys())
 
         if len(res_choice):
             df_insert_presence = all_results.get_insert_presence_df(
@@ -308,14 +319,33 @@ def show_results():
                 seq_id = st.multiselect(
                     "Select sequence id:",
                     # [*insert_presence_df.index, *cluster_ids],
-                    df_insert_presence.index,
+                    df_insert_presence.index.tolist() + list(all_clusters),
                     None,
+                    format_func=lambda x: (
+                        f"{x[0]} - cluster {x[1]}"
+                        if isinstance(x, (tuple, list))
+                        else x
+                    ),
                 )
+
                 if not len(seq_id):
                     seq_id = df_insert_presence.index.tolist()
                     sel_seq_id = False
                 else:
                     sel_seq_id = True
+
+                # Make sure that clusters are converted to seq_ids
+                # removing any duplicates
+                seq_id = list(
+                    set(
+                        chain.from_iterable(
+                            [
+                                all_clusters[x] if x in all_clusters else [x]
+                                for x in seq_id
+                            ]
+                        )
+                    )
+                )
 
                 if isinstance(seq_id, (tuple, list)) and len(seq_id):
                     df_inserts = df_inserts.query(get_inserts_cond(seq_id))
@@ -344,14 +374,8 @@ def show_results():
                     else:
                         sel_seq_id = True
 
-                genomes_list = (
-                    df_insert_presence.loc[seq_id, :]
-                    .dropna(axis=1, how="all")
-                    .columns.tolist()
-                )
-
                 if sel_seq_id:
-                    genome_choice = st.multiselect("Genome:", genomes_list, None)
+                    genome_choice = st.multiselect("Genome:", res_choice, None)
                     if not len(genome_choice):
                         genome_choice = res_choice
 
