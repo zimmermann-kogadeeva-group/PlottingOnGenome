@@ -54,7 +54,7 @@ class Insert(object):
             return start, end
         else:
             start = hsp1.hit_start
-            end = hsp1.hit_start + avg_insert_length
+            end = max(hsp1.hit_end, hsp1.hit_start + avg_insert_length)
             return start, end
 
     def __init__(

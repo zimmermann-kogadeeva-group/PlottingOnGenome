@@ -61,9 +61,20 @@ def get_main_inputs(workdir=False):
     )
 
     fwd_suf, rev_suf = None, None
-    if st.toggle("Match forward and reverse sequences"):
+    default_ins_len = 4000
+    if st.toggle("Pair forward and reverse sequences"):
         fwd_suf = st.text_input("Forward suffix:", "_F", key="fwd_suf")
         rev_suf = st.text_input("Reverse suffix:", "_R", key="rev_suf")
+        default_ins_len = st.number_input(
+            "Default insert length:",
+            value=default_ins_len,
+            min_value=0,
+            help=(
+                "When a forward or reverse sequence cannot be "
+                "paired with a corresponding sequence, then this "
+                "number will be used as length of the insert"
+            ),
+        )
 
     workdir_path = None
     if workdir:
@@ -76,6 +87,7 @@ def get_main_inputs(workdir=False):
         "fwd_suf": fwd_suf,
         "rev_suf": rev_suf,
         "workdir": workdir_path,
+        "avg_insert_len": default_ins_len,
     }
 
     all_inputs = []
@@ -103,6 +115,7 @@ def run_pipeline(
     fwd_suf,
     rev_suf,
     workdir=None,
+    avg_insert_len=4000,
 ):
     with TempDirManager(workdir) as work_dir:
         dirpath = Path(work_dir)
@@ -130,6 +143,7 @@ def run_pipeline(
                 retmax=retmax,
                 fwd_suffix=fwd_suf,
                 rev_suffix=rev_suf,
+                avg_insert_len=avg_insert_len,
             )
         except RuntimeError as e:
             st.error(e)
