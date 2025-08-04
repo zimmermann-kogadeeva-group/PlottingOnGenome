@@ -259,7 +259,8 @@ class Mapping(object):
     ):
         assert insert_type in ("paired", "unpaired", "both"), f"{insert_type=}"
 
-        seq_id_or_idx = seq_id_or_idx or self.seq_ids
+        if seq_id_or_idx is None:
+            seq_id_or_idx = self.seq_ids
 
         if isinstance(seq_id_or_idx, (str, int)):
             inserts = self.__getitem__(seq_id_or_idx)
