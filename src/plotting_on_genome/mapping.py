@@ -222,36 +222,25 @@ class Mapping(object):
         }
 
     def __getitem__(self, key):
+
         if isinstance(key, int):
             return self._all_inserts[self.seq_ids[key]]
 
         elif isinstance(key, str):
             return self._all_inserts[key]
 
-        elif isinstance(key, (tuple, list)):
-            by_str = [
-                insert
-                for k in key
-                for insert in self.__getitem__(k)
-                if isinstance(k, (str, int))
-            ]
-            by_tup = [
-                self._all_inserts[k[0]][k[1]]
-                for k in key
-                if isinstance(k, (tuple, list)) and k[1] < len(self._all_inserts[k[0]])
-            ]
-            return by_str + by_tup
-
-        elif isinstance(key, slice):
-            return self.__getitem__(
-                [ii for ii in range(*key.indices(len(self.seq_ids)))]
-            )
-
         else:
             raise TypeError(f"Invalid argument type: {type(key)}")
 
     def __len__(self):
         return len(self.seq_ids)
+
+    def __contains__(self, value):
+        if isinstance(value, (tuple, list)):
+            cond_seq_id = value[0] in self.seq_ids
+            return cond_seq_id and value[1] < len(self._all_inserts[value[0]])
+        else:
+            return value in self.seq_ids
 
     def get_genes(self, start, end, hit_id, buffer=4000):
         start_ = start - buffer
@@ -269,10 +258,24 @@ class Mapping(object):
         filter_threshold=None,
     ):
         assert insert_type in ("paired", "unpaired", "both"), f"{insert_type=}"
-        if seq_id_or_idx is None:
-            seq_id_or_idx = self.seq_ids
 
-        inserts = self.__getitem__(seq_id_or_idx)
+        seq_id_or_idx = seq_id_or_idx or self.seq_ids
+
+        if isinstance(seq_id_or_idx, (str, int)):
+            inserts = self.__getitem__(seq_id_or_idx)
+        elif isinstance(seq_id_or_idx, (tuple, list)):
+            by_tuple = [
+                self._all_inserts[seq_id[0]][seq_id[1]]
+                for seq_id in seq_id_or_idx
+                if isinstance(seq_id, (tuple, list)) and seq_id in self
+            ]
+            by_str = [
+                insert
+                for seq_id in seq_id_or_idx
+                if isinstance(seq_id, str)
+                for insert in self._all_inserts[seq_id]
+            ]
+            inserts = by_tuple + by_str
 
         # Apply the coverage filter
         if filter_threshold is not None:
