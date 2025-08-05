@@ -137,11 +137,14 @@ def plot_genomes(
     num_cols = None
 
     with st.expander("Plotting options"):
-        show_labels = st.toggle("Show contig labels", value=True)
+        show_labels = st.toggle("Show contig/seq labels", value=True)
         show_titles = st.toggle("Show genome labels", value=True)
         facet = st.toggle("Separate plot for each genome", value=False)
         if facet:
             num_cols = st.number_input("Number of columns", value=3, min_value=1)
+
+    if not len(seq_id):
+        seq_id = None
 
     fig = all_inserts.plot(
         selection={g: seq_id for g in genome_choice},

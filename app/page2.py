@@ -182,7 +182,7 @@ def show_results():
                 plot_genomes(
                     all_results,
                     res_choice,
-                    seq_id or pos_seq_ids,
+                    seq_id,
                     clust_sel,
                     **params,
                 )

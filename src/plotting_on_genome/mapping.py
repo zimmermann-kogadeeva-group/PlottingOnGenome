@@ -265,7 +265,7 @@ class Mapping(object):
         if isinstance(seq_id_or_idx, (str, int)):
             inserts = self.__getitem__(seq_id_or_idx)
 
-        elif isinstance(seq_id_or_idx, (tuple, list)):
+        elif isinstance(seq_id_or_idx, (tuple, list, set)):
             by_tuple = [
                 self._all_inserts[insert_id[0]][insert_id[1]]
                 for insert_id in seq_id_or_idx
@@ -374,7 +374,7 @@ class Mapping(object):
         seq_id_or_idxs=None,
         insert_type="both",
         filter_threshold=None,
-        contig_labels=True,
+        show_labels=True,
         seq_labels=None,
         col1="#ebf3ed",
         col2="#2e8b57",
@@ -382,7 +382,7 @@ class Mapping(object):
     ):
 
         seq_labels = seq_labels or dict()
-        inserts = self.get(seq_id_or_idxs, insert_type, filter_threshold)
+        inserts = set(self.get(seq_id_or_idxs, insert_type, filter_threshold))
 
         # Get just the sequences for each NCBI record and order them by size in
         # descending order. 'x.features[0]' to get the whole sequence for a
@@ -412,9 +412,7 @@ class Mapping(object):
                 GraphicFeature(
                     start=shifts[i],
                     end=shifts[i + 1],
-                    label=(
-                        None if not contig_labels or x.id not in mapped_ids else x.id
-                    ),
+                    label=(None if not show_labels or x.id not in mapped_ids else x.id),
                     color=col1,
                     linecolor="#000000",
                     **kwargs,
@@ -434,7 +432,11 @@ class Mapping(object):
                 end=insert.end + shifts[ids.index(insert.hit_id)],
                 strand=insert.strand,
                 color=col2,
-                label=seq_labels.get((insert.seq_id, insert.idx)),
+                label=(
+                    None
+                    if not show_labels
+                    else seq_labels.get((insert.seq_id, insert.idx))
+                ),
                 linecolor=linecolor,
                 **kwargs,
             )

@@ -8,6 +8,34 @@ from dna_features_viewer import CircularGraphicRecord
 from matplotlib import color_sequences
 
 
+def clusters_to_seq_labels(clusters):
+    # Get sequences / insert labels based on clusters
+    seq_labels = defaultdict(dict)
+    if clusters is not None:
+        for (genome, clust_idx), seq_ids in clusters.items():
+            for seq_id in seq_ids:
+                seq_labels[genome][seq_id] = f"Cluster {clust_idx}"
+    return seq_labels
+
+
+def merge_sets(set1, set2):
+    set1_cond = set1 is None or not len(set1)
+    set2_cond = set2 is None or not len(set2)
+    if set1_cond and not set2_cond:
+        return set2
+    elif set2_cond and not set1_cond:
+        return set1
+    elif set1_cond and set2_cond:
+        return None
+    else:
+        return list(set([*set1, *set2]))
+
+
+def merge_selections(selection, seq_labels):
+    keys = set([*selection.keys(), *seq_labels.keys()])
+    return {k: merge_sets(selection[k], list(seq_labels[k].keys())) for k in keys}
+
+
 class Comparison(dict):
 
     def __init__(self, *args, **kwargs):
@@ -153,20 +181,17 @@ class Comparison(dict):
             axs = np.array([axs])
 
         palette = cycle(color_sequences[palette])
+        seq_labels = clusters_to_seq_labels(clusters)
 
-        # Get sequences / insert labels based on clusters
-        seq_labels = defaultdict(dict)
-        if clusters is not None:
-            for (genome, clust_idx), seq_ids in clusters.items():
-                for seq_id in seq_ids:
-                    seq_labels[genome][seq_id] = f"Cluster {clust_idx}"
+        # update selection based on clusters
+        selection = merge_selections(selection, seq_labels)
 
         res = [
             self.__getitem__(key).get_graphic_features(
                 selection[key],
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
-                contig_labels=show_labels,
+                show_labels=show_labels,
                 seq_labels=seq_labels[key],
                 col1=col,
                 col2=col,
@@ -175,24 +200,25 @@ class Comparison(dict):
             for key, col in zip(genomes_order, palette)
         ]
 
+        genomes_labels = genomes_order
         if facet_wrap is None:
             features = list(chain.from_iterable([x[1] for x in res]))
             rec = CircularGraphicRecord(max([x[0] for x in res]), features)
             _ = rec.plot(axs[0], annotate_inline=False)
-            axs[0].set_title(", ".join(genomes_order))
+            genomes_labels = [", ".join(genomes_order)]
 
         else:
             for (seq_len, features), ax in zip(res, axs.flatten()):
                 rec = CircularGraphicRecord(seq_len, features)
                 _ = rec.plot(ax, annotate_inline=False)
 
-            # Set titles
-            if show_titles:
-                for title, ax in zip(genomes_order, axs):
-                    ax.set_title(title)
-
             # Remove redundant axis
             for ax in axs[num_genomes:]:
                 ax.axis("off")
+
+        # Set titles
+        if show_titles:
+            for title, ax in zip(genomes_labels, axs):
+                ax.set_title(title)
 
         return fig
