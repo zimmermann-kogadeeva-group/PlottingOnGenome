@@ -125,7 +125,13 @@ def plot_inserts(
 
 
 def plot_genomes(
-    all_inserts, genome_choice, seq_id, insert_type, filter_threshold, **kwargs
+    all_inserts,
+    genome_choice,
+    seq_id,
+    clusters,
+    insert_type,
+    filter_threshold,
+    **kwargs,
 ):
     show_labels, show_titles = True, True
     num_cols = None
@@ -139,6 +145,7 @@ def plot_genomes(
 
     fig = all_inserts.plot(
         selection={g: seq_id for g in genome_choice},
+        clusters=clusters,
         insert_type=insert_type,
         filter_threshold=filter_threshold,
         show_labels=show_labels,

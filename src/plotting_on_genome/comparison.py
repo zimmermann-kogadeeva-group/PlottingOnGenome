@@ -1,3 +1,4 @@
+from collections import defaultdict
 from itertools import chain, cycle
 
 import matplotlib.pyplot as plt
@@ -113,6 +114,7 @@ class Comparison(dict):
     def plot(
         self,
         selection=None,
+        clusters=None,
         insert_type="both",
         filter_threshold=None,
         show_labels=True,
@@ -152,12 +154,20 @@ class Comparison(dict):
 
         palette = cycle(color_sequences[palette])
 
+        # Get sequences / insert labels based on clusters
+        seq_labels = defaultdict(dict)
+        if clusters is not None:
+            for (genome, clust_idx), seq_ids in clusters.items():
+                for seq_id in seq_ids:
+                    seq_labels[genome][seq_id] = f"Cluster {clust_idx}"
+
         res = [
             self.__getitem__(key).get_graphic_features(
                 selection[key],
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
-                show_labels=show_labels,
+                contig_labels=show_labels,
+                seq_labels=seq_labels[key],
                 col1=col,
                 col2=col,
                 linecolor=col,

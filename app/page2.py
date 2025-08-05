@@ -183,6 +183,7 @@ def show_results():
                     all_results,
                     res_choice,
                     seq_id or pos_seq_ids,
+                    clust_sel,
                     **params,
                 )
 

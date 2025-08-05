@@ -375,11 +375,13 @@ class Mapping(object):
         insert_type="both",
         filter_threshold=None,
         contig_labels=True,
+        seq_labels=None,
         col1="#ebf3ed",
         col2="#2e8b57",
         **kwargs,
     ):
 
+        seq_labels = seq_labels or dict()
         inserts = self.get(seq_id_or_idxs, insert_type, filter_threshold)
 
         # Get just the sequences for each NCBI record and order them by size in
@@ -432,7 +434,7 @@ class Mapping(object):
                 end=insert.end + shifts[ids.index(insert.hit_id)],
                 strand=insert.strand,
                 color=col2,
-                label=None,
+                label=seq_labels.get((insert.seq_id, insert.idx)),
                 linecolor=linecolor,
                 **kwargs,
             )
@@ -446,7 +448,8 @@ class Mapping(object):
         seq_id_or_idxs=None,
         insert_type="both",
         filter_threshold=None,
-        show_labels=True,
+        contig_labels=True,
+        seq_labels=None,
         col1="#ebf3ed",
         col2="#2e8b57",
         ax=None,
@@ -460,7 +463,8 @@ class Mapping(object):
             seq_id_or_idxs,
             insert_type,
             filter_threshold,
-            show_labels,
+            contig_labels,
+            seq_labels,
             col1,
             col2,
             **kwargs,
