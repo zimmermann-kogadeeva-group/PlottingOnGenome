@@ -105,6 +105,17 @@ class Insert(object):
             f"paired={self.paired})"
         )
 
+    def __format__(self, format_spec):
+        if format_spec == "short":
+            return (
+                f"seq_id = {self.seq_id}, "
+                f"index = {self.idx}, "
+                f"coverage = {self.coverage:.2f}, "
+                f"paired = {self.paired}, "
+                f"hit_id = {self.hit_id}"
+            )
+        return self.__repr__()
+
     def __len__(self):
         return self.end - self.start + 1
 

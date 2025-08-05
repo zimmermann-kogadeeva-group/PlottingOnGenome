@@ -44,7 +44,14 @@ def plot_inserts_dist(data, palette="tab10"):
 
 
 def plot_inserts(
-    all_inserts, genome_choice, seq_id, insert_type, filter_threshold, buffer, **kwargs
+    all_inserts,
+    genome_choice,
+    seq_id,
+    clusters=None,
+    insert_type="both",
+    filter_threshold=None,
+    buffer=4000,
+    **kwargs,
 ):
 
     # Get a table of genes and display it in the webapp
@@ -55,7 +62,7 @@ def plot_inserts(
         filter_threshold=filter_threshold,
         buffer=buffer,
     )
-    with st.expander("Genes table"):
+    with st.expander("Table of genes"):
         st.write(df_genes)
 
     # Set defaults for user-defined params
@@ -83,13 +90,7 @@ def plot_inserts(
             filter_threshold=filter_threshold,
         )
         for insert in inserts:
-            st.write(
-                f"Insert {insert.seq_id}: "
-                f"index = {insert.idx}, "
-                f"coverage = {insert.coverage:.2f}, "
-                f"paired = {insert.paired}, "
-                f"hit_id = {insert.hit_id}"
-            )
+            st.write(f"{insert:short}")
             fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[2, 5])
             fig.suptitle(f"Insert {insert.idx}")
             axs = insert.plot(
@@ -103,49 +104,24 @@ def plot_inserts(
             st.pyplot(fig)
             plt.close()
 
-
-def plot_multiple_inserts(
-    all_inserts, genome_choice, seq_id, insert_type, filter_threshold, buffer, **kwargs
-):
-    if isinstance(genome_choice, (tuple, list)):
-        assert len(genome_choice) == 1, "Multiple genomes specified"
-        genome_choice = genome_choice[0]
-
-    feature_types = set()
-    colorbar = False
-
-    # Get display options from the user
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.checkbox("Display CDS", value=True):
-            feature_types.update(("CDS",))
-    with col2:
-        if st.checkbox("Display genes", value=True):
-            feature_types.update(("gene",))
-    with col3:
-        colorbar = st.checkbox("Color genes by overlap", value=False)
-
-    fig, axs = plt.subplots(nrows=2, figsize=(10, 10))
-    res = all_inserts[genome_choice]
-    inserts = res.get(seq_id)
-    for insert in inserts:
-        st.write(
-            f"Insert {insert.seq_id} with index {insert.idx}: "
-            f"coverage = {insert.coverage:.2f}, "
-            f"paired = {insert.paired}, "
-            f"hit_id = {insert.hit_id}"
-        )
-    axs = res.plot_inserts(
-        seq_id,
-        axs=axs,
-        insert_type=insert_type,
-        filter_threshold=filter_threshold,
-        buffer=buffer,
-        feature_types=feature_types,
-        colorbar=colorbar,
-    )
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
+    if clusters is not None:
+        for (genome, clust_idx), seq_ids in clusters.items():
+            fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[2, 5])
+            fig.suptitle(f"Cluster {clust_idx}")
+            clust_ins = all_inserts[genome].get(seq_ids, insert_type, filter_threshold)
+            st.write(f"Cluster {clust_idx}:")
+            st.write("\n".join([f"- {x:short}" for x in clust_ins]))
+            axs = all_inserts[genome].plot_inserts(
+                seq_ids,
+                axs=axs,
+                insert_type=insert_type,
+                filter_threshold=filter_threshold,
+                buffer=buffer,
+                feature_types=feature_types,
+                colorbar=colorbar,
+            )
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
 
 
 def plot_genomes(

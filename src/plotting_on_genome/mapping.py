@@ -215,10 +215,10 @@ class Mapping(object):
                 seq_id: self._get_single_inserts(seq_id) for seq_id in self.seq_ids
             }
 
-        self.seq_to_ins_dict = {
-            seq_id: [(x.seq_id, x.idx) for x in inserts]
+        self.insert_ids = {
+            (insert.seq_id, insert.idx)
             for seq_id, inserts in self._all_inserts.items()
-            if len(inserts)
+            for insert in inserts
         }
 
     def __getitem__(self, key):
@@ -237,8 +237,7 @@ class Mapping(object):
 
     def __contains__(self, value):
         if isinstance(value, (tuple, list)):
-            cond_seq_id = value[0] in self.seq_ids
-            return cond_seq_id and value[1] < len(self._all_inserts[value[0]])
+            return value in self.insert_ids
         else:
             return value in self.seq_ids
 
@@ -262,13 +261,15 @@ class Mapping(object):
         if seq_id_or_idx is None:
             seq_id_or_idx = self.seq_ids
 
+        inserts = []
         if isinstance(seq_id_or_idx, (str, int)):
             inserts = self.__getitem__(seq_id_or_idx)
+
         elif isinstance(seq_id_or_idx, (tuple, list)):
             by_tuple = [
-                self._all_inserts[seq_id[0]][seq_id[1]]
-                for seq_id in seq_id_or_idx
-                if isinstance(seq_id, (tuple, list)) and seq_id in self
+                self._all_inserts[insert_id[0]][insert_id[1]]
+                for insert_id in seq_id_or_idx
+                if isinstance(insert_id, (tuple, list)) and insert_id in self
             ]
             by_str = [
                 insert
@@ -373,7 +374,7 @@ class Mapping(object):
         seq_id_or_idxs=None,
         insert_type="both",
         filter_threshold=None,
-        show_labels=True,
+        contig_labels=True,
         col1="#ebf3ed",
         col2="#2e8b57",
         **kwargs,
@@ -409,7 +410,9 @@ class Mapping(object):
                 GraphicFeature(
                     start=shifts[i],
                     end=shifts[i + 1],
-                    label=_get_contig_label(x, mapped_ids, show_labels),
+                    label=(
+                        None if not contig_labels or x.id not in mapped_ids else x.id
+                    ),
                     color=col1,
                     linecolor="#000000",
                     **kwargs,
@@ -531,8 +534,8 @@ class Mapping(object):
         features = [x.get_graphic_feature(col2) for x in inserts]
 
         # TODO: uncomment and use get_genes from InsertsDict
-        start = inserts[0].start  # min([x.start for x in inserts])
-        end = inserts[0].end  # max([x.end for x in inserts])
+        start = min([x.start for x in inserts])  # inserts[0].start
+        end = max([x.end for x in inserts])  # inserts[0].end
 
         # Plot the query sequence on the upper axes
         rec_seqs = GraphicRecord(
@@ -566,8 +569,8 @@ class Mapping(object):
                     ax_cb, cmap=cmap, orientation="vertical", label="gene coverage"
                 )
 
-            fig_axvline(axs, inserts[0].start)
-            fig_axvline(axs, inserts[-1].end)
+            fig_axvline(axs, start)
+            fig_axvline(axs, end)
 
             return axs
         else:

@@ -69,7 +69,7 @@ def download_tables(df_inserts, df_genes):
     )
 
     st.download_button(
-        label="Download all inserts as CSV",
+        label="Download all mapped seqs as CSV",
         data=df_inserts.pipe(convert_df, index=False),
         file_name="inserts.csv",
         mime="text/csv",
@@ -96,40 +96,27 @@ def select_genomes(genome_labels):
     return res_choice
 
 
-def select_seq_id(possible_seq_ids, clusters_dict, second_sel=False):
+def select_seq_id(possible_seq_ids, clusters_dict, st_key):
 
-    # Streamlit cannot have two widets with the same key, so
-    # we manually set the key for the seq_id selection if tabbed views are used
-    st_key = "seq_id_sel"
-    if second_sel:
-        st_key = "seq_id_sel_2"
-
-    # Select inserts
-    seq_id = st.multiselect(
+    sel = st.multiselect(
         "Select sequence id:",
-        # [*insert_presence_df.index, *cluster_ids],
         possible_seq_ids + list(clusters_dict),
         None,
         format_func=lambda x: (
-            f"{x[0]} - cluster {x[1]}" if isinstance(x, (tuple, list)) else x
+            f"{x[0]} - cluster {x[1]}" if isinstance(x, (list, tuple)) else x
         ),
         key=st_key,
     )
 
-    # Make sure that clusters are converted to seq_ids
-    # removing any duplicates
-    seq_id = list(
-        set(
-            chain.from_iterable(
-                [clusters_dict[x] if x in clusters_dict else [x] for x in seq_id]
-            )
-        )
-    )
+    sel = set(sel)
+    clusters = {x: clusters_dict[x] for x in sel if x in clusters_dict}
+    seq_id = list(sel - set(clusters.keys()))
 
-    return seq_id
+    return seq_id, clusters
 
 
-def get_inserts_cond(seq_ids):
+def get_inserts_cond(seq_ids, clusters):
+    cluster_ins_ids = list(chain.from_iterable(clusters.values()))
     return " or ".join(
         [
             (
@@ -137,7 +124,7 @@ def get_inserts_cond(seq_ids):
                 if len(seq_id) == 2
                 else f"seq_id == '{seq_id}'"
             )
-            for seq_id in seq_ids
+            for seq_id in set(seq_ids + cluster_ins_ids)
         ]
     )
 
@@ -166,7 +153,9 @@ def show_results():
                 lambda x: ",".join(x) if isinstance(x, list) else x
             )
 
-            all_clusters = all_results.get_clusters(res_choice, **params)
+            # Possible seq_ids and clusters
+            pos_seq_ids = df_insert_presence.index.tolist()
+            pos_clusters = all_results.get_clusters(res_choice, **params)
 
             seq_id = []
             with genome_view:
@@ -175,37 +164,35 @@ def show_results():
                 # download all genes and inserts
                 download_tables(df_inserts, df_genes)
 
-                with st.expander("Insert presence/absence table"):
+                with st.expander("Mapped seqs presence/absence table"):
                     st.write(df_insert_presence)
 
                 # Select inserts
-                seq_id = select_seq_id(df_insert_presence.index.tolist(), all_clusters)
+                seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters, "seq1")
 
-                if isinstance(seq_id, (tuple, list)) and len(seq_id):
-                    df_inserts = df_inserts.query(get_inserts_cond(seq_id))
+                if seq_id or clust_sel:
+                    df_inserts = df_inserts.query(get_inserts_cond(seq_id, clust_sel))
 
-                with st.expander("Inserts info"):
+                with st.expander("Table of mapped seqs"):
                     st.write(df_inserts)
 
-                with st.expander("Plot inserts dist"):
+                with st.expander("Distribution of mapped seqs"):
                     plot_inserts_dist(df_inserts)
 
                 plot_genomes(
                     all_results,
                     res_choice,
-                    seq_id or df_insert_presence.index.tolist(),
+                    seq_id or pos_seq_ids,
                     **params,
                 )
 
             with insert_view:
                 st.header("Insert view")
                 if tabbed:
-                    seq_id = select_seq_id(
-                        df_insert_presence.index.tolist(), all_clusters, second_sel=True
-                    )
+                    seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters, "seq2")
 
                 genome_choice = st.multiselect("Genome:", res_choice, None)
                 if not len(genome_choice):
                     genome_choice = res_choice
 
-                plot_inserts(all_results, genome_choice, seq_id, **params)
+                plot_inserts(all_results, genome_choice, seq_id, clust_sel, **params)
