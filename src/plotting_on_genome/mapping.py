@@ -242,8 +242,12 @@ class Mapping(object):
             return value in self.seq_ids
 
     def get_genes(self, start, end, hit_id, buffer=4000):
-        start_ = start - buffer
-        end_ = end + buffer
+        if isinstance(buffer, int):
+            buffer = (buffer, buffer)
+        assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
+
+        start_ = start - buffer[0]
+        end_ = end + buffer[1]
 
         return [
             shift_feature(gene, start_)
@@ -351,6 +355,10 @@ class Mapping(object):
         filter_threshold=None,
         buffer=4000,
     ):
+        if isinstance(buffer, int):
+            buffer = (buffer, buffer)
+        assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
+
         inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
 
         df_genes = pd.DataFrame(
@@ -531,6 +539,9 @@ class Mapping(object):
         backend="matplotlib",
         **kwargs,
     ):
+        if isinstance(buffer, int):
+            buffer = (buffer, buffer)
+        assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
 
         inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
         cmap = None
@@ -545,12 +556,15 @@ class Mapping(object):
 
         # Plot the query sequence on the upper axes
         rec_seqs = GraphicRecord(
-            first_index=start - buffer,
-            sequence_length=end - start + 2 * buffer,
+            first_index=start - buffer[0],
+            sequence_length=end - start + sum(buffer),
             features=features,
         )
+
+        gene_buf_start = abs(inserts[0].start - start) + buffer[0]
+        gene_buf_end = abs(inserts[0].end - end) + buffer[1]
         rec_genes = inserts[0].get_genes_graphic_record(
-            buffer, col1, feature_types, cmap
+            (gene_buf_start, gene_buf_end), col1, feature_types, cmap
         )
 
         if "figsize" not in kwargs:

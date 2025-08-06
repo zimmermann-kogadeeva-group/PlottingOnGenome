@@ -40,6 +40,25 @@ def fig_axvline(axes, value, ls="--", color="gray", **kwargs):
     fig.lines.append(line)
 
 
+def get_gene_coverage(gene_start, gene_end, region_start, region_end):
+    if gene_start >= region_start and gene_end <= region_end:
+        return 1.0
+    elif gene_end < region_start or gene_start > region_end:
+        return 0.0
+    elif gene_start < region_start and gene_end > region_end:  # TODO: check this
+        return (region_end - region_start + 1) / (gene_end - gene_start + 1)
+    elif gene_start < region_start and region_start <= gene_end <= region_end:
+        return (gene_end - region_start + 1) / (gene_end - gene_start + 1)
+    elif gene_end > region_end and region_start <= gene_start <= region_end:
+        return (region_end - gene_start + 1) / (gene_end - gene_start + 1)
+    else:
+        raise RuntimeError(
+            f"Unknown gene case: "
+            f"{gene_start=}, {gene_end=}, "
+            f"insert_start={region_start}, insert_end={region_end}"
+        )
+
+
 class Insert(object):
 
     def _get_endpoints(self, hsp1, hsp2=None, avg_insert_length=0):
@@ -120,33 +139,25 @@ class Insert(object):
         return self.end - self.start + 1
 
     def get_genes(self, buffer=4000):
-        start = self.start - buffer
-        end = self.end + buffer
+        if isinstance(buffer, int):
+            buffer = (buffer, buffer)
+        assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
+
+        start = self.start - buffer[0]
+        end = self.end + buffer[1]
 
         return [shift_feature(gene, start) for gene in self._genome[start:end].features]
 
     def _get_gene_coverage(self, gene):
-        gene_start = gene.location.start
-        gene_end = gene.location.end
-
-        if gene_start >= self.start and gene_end <= self.end:
-            return 1.0
-        elif gene_end < self.start or gene_start > self.end:
-            return 0.0
-        elif gene_start < self.start and gene_end > self.end:  # TODO: check this
-            return (self.end - self.start + 1) / (gene_end - gene_start + 1)
-        elif gene_start < self.start and self.start <= gene_end <= self.end:
-            return (gene_end - self.start + 1) / (gene_end - gene_start + 1)
-        elif gene_end > self.end and self.start <= gene_start <= self.end:
-            return (self.end - gene_start + 1) / (gene_end - gene_start + 1)
-        else:
-            raise RuntimeError(
-                f"Unknown gene case: "
-                f"{gene_start=}, {gene_end=}, "
-                f"insert_start={self.start}, insert_end={self.end}"
-            )
+        return get_gene_coverage(
+            gene.location.start, gene.location.end, self.start, self.end
+        )
 
     def to_dataframe(self, buffer=4000):
+        if isinstance(buffer, int):
+            buffer = (buffer, buffer)
+        assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
+
         return pd.DataFrame(
             [
                 {
@@ -172,8 +183,16 @@ class Insert(object):
 
     # TODO: col1, col2, cmap - simplify
     def get_genes_graphic_record(
-        self, buffer=4000, col="#ebf3ed", feature_types=None, cmap=None
+        self,
+        buffer=4000,
+        col="#ebf3ed",
+        feature_types=None,
+        cmap=None,
     ):
+        if isinstance(buffer, int):
+            buffer = (buffer, buffer)
+        assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
+
         genes = self.get_genes(buffer)
         if feature_types is None:
             feature_types = {x.type for x in genes}
@@ -188,8 +207,8 @@ class Insert(object):
 
         # Plot the genes and CDSes in the region of the mapped sequence
         record_hits = GraphicRecord(
-            first_index=self.start - buffer,
-            sequence_length=self.end - self.start + 2 * buffer,
+            first_index=self.start - buffer[0],
+            sequence_length=self.end - self.start + sum(buffer),
             features=features,
         )
         return record_hits
@@ -206,14 +225,18 @@ class Insert(object):
         **kwargs,
     ):
 
+        if isinstance(buffer, int):
+            buffer = (buffer, buffer)
+        assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
+
         cmap = None
         if colorbar:
             cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
 
         # Plot the query sequence on the upper axes
         rec_seq = GraphicRecord(
-            first_index=self.start - buffer,
-            sequence_length=self.end - self.start + 2 * buffer,
+            first_index=self.start - buffer[0],
+            sequence_length=self.end - self.start + sum(buffer),
             features=[self.get_graphic_feature(col2)],
         )
         rec_genes = self.get_genes_graphic_record(buffer, col1, feature_types, cmap)

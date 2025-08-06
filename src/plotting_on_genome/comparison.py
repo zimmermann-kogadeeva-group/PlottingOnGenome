@@ -118,7 +118,7 @@ class Comparison(dict):
         seq_id=None,
         insert_type="both",
         filter_threshold=None,
-        buffer=None,
+        buffer=4000,
         **kwargs,
     ):
         if keys is None:

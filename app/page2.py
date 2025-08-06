@@ -99,7 +99,7 @@ def select_genomes(genome_labels):
 def select_seq_id(possible_seq_ids, clusters_dict, st_key):
 
     sel = st.multiselect(
-        "Select sequence id:",
+        "Select sequence id / cluster:",
         possible_seq_ids + list(clusters_dict),
         None,
         format_func=lambda x: (
