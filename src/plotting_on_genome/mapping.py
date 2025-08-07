@@ -554,6 +554,9 @@ class Mapping(object):
         start = min([x.start for x in inserts])  # inserts[0].start
         end = max([x.end for x in inserts])  # inserts[0].end
 
+        intersection_start = max([x.start for x in inserts])
+        intersection_end = min([x.end for x in inserts])
+
         # Plot the query sequence on the upper axes
         rec_seqs = GraphicRecord(
             first_index=start - buffer[0],
@@ -589,8 +592,8 @@ class Mapping(object):
                     ax_cb, cmap=cmap, orientation="vertical", label="gene coverage"
                 )
 
-            fig_axvline(axs, start)
-            fig_axvline(axs, end)
+            fig_axvline(axs, intersection_start)
+            fig_axvline(axs, intersection_end)
 
             return axs
         else:

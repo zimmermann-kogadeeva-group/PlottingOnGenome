@@ -107,8 +107,8 @@ def plot_inserts(
     if clusters is not None:
         for (genome, clust_idx), seq_ids in clusters.items():
             clust_ins = all_inserts[genome].get(seq_ids, insert_type, filter_threshold)
-            st.write(f"Cluster {clust_idx}:")
-            st.write("\n".join([f"- {x:short}" for x in clust_ins]))
+            with st.expander(f"Cluster {clust_idx}:"):
+                st.write("\n".join([f"- {x:short}" for x in clust_ins]))
 
             h_ratios = (2 + len(clust_ins), 5)
             figsize = (10, 6 * (h_ratios[0] / 7))
