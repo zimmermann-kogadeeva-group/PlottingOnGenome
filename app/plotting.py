@@ -106,11 +106,14 @@ def plot_inserts(
 
     if clusters is not None:
         for (genome, clust_idx), seq_ids in clusters.items():
-            fig, axs = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[2, 5])
-            fig.suptitle(f"Cluster {clust_idx}")
             clust_ins = all_inserts[genome].get(seq_ids, insert_type, filter_threshold)
             st.write(f"Cluster {clust_idx}:")
             st.write("\n".join([f"- {x:short}" for x in clust_ins]))
+
+            h_ratios = (2 + len(clust_ins), 5)
+            figsize = (10, 6 * (h_ratios[0] / 7))
+            fig, axs = plt.subplots(2, 1, figsize=figsize, height_ratios=h_ratios)
+            fig.suptitle(f"Cluster {clust_idx}")
             axs = all_inserts[genome].plot_inserts(
                 seq_ids,
                 axs=axs,
@@ -119,6 +122,8 @@ def plot_inserts(
                 buffer=buffer,
                 feature_types=feature_types,
                 colorbar=colorbar,
+                col1=col1,
+                col2=col2,
             )
             st.pyplot(fig, use_container_width=True)
             plt.close(fig)
