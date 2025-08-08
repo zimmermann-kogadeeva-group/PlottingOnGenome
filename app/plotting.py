@@ -56,8 +56,8 @@ def plot_inserts(
 
     # Get a table of genes and display it in the webapp
     df_genes = all_inserts.get_genes_df(
-        genome_choice,
-        seq_id,
+        selection={g: seq_id for g in genome_choice},
+        clusters=clusters,
         insert_type=insert_type,
         filter_threshold=filter_threshold,
         buffer=buffer,

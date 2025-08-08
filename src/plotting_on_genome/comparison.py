@@ -13,8 +13,9 @@ def clusters_to_seq_labels(clusters):
     seq_labels = defaultdict(dict)
     if clusters is not None:
         for (genome, clust_idx), seq_ids in clusters.items():
-            for seq_id in seq_ids:
-                seq_labels[genome][seq_id] = f"Cluster {clust_idx}"
+            seq_labels[genome][seq_ids[-1]] = f"Cluster {clust_idx}"
+            for seq_id in seq_ids[:-1]:
+                seq_labels[genome][seq_id] = None
     return seq_labels
 
 
@@ -114,15 +115,22 @@ class Comparison(dict):
 
     def get_genes_df(
         self,
-        keys=None,
-        seq_id=None,
+        selection=None,
+        clusters=None,
         insert_type="both",
         filter_threshold=None,
         buffer=4000,
         **kwargs,
     ):
-        if keys is None:
-            keys = self.keys()
+
+        if selection is None:
+            selection = list(self.keys())
+
+        if isinstance(selection, (list, tuple)):
+            selection = {x: None for x in selection}
+
+        seq_labels = clusters_to_seq_labels(clusters)
+        selection = merge_selections(selection, seq_labels)
 
         genes_dfs = [
             self.__getitem__(key)
@@ -133,11 +141,14 @@ class Comparison(dict):
                 buffer=buffer,
             )
             .assign(genome=key)
-            for key in keys
+            for key, seq_id in selection.items()
         ]
 
         if len(genes_dfs):
-            return pd.concat(genes_dfs, ignore_index=True)
+            drop_by = ["start", "end", "type", "insert_idx", "seq_id", "genome"]
+            return pd.concat(genes_dfs, ignore_index=True).drop_duplicates(
+                subset=drop_by
+            )
 
     def plot(
         self,
