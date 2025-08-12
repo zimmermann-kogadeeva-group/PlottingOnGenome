@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
@@ -82,6 +84,11 @@ def plot_inserts(
         col1 = st.color_picker("Genes/CDS color:", value=col1)
         col2 = st.color_picker("Inserts color:", value=col2)
 
+    clusters_alt = defaultdict(dict)
+    if clusters is not None:
+        for (genome, idx), seq_ids in clusters.items():
+            clusters_alt[genome][idx] = seq_ids
+
     for genome in genome_choice:
         st.subheader(genome, divider="gray")
         inserts = all_inserts[genome].get(
@@ -104,8 +111,7 @@ def plot_inserts(
             st.pyplot(fig)
             plt.close()
 
-    if clusters is not None:
-        for (genome, clust_idx), seq_ids in clusters.items():
+        for clust_idx, seq_ids in clusters_alt[genome].items():
             clust_ins = all_inserts[genome].get(seq_ids, insert_type, filter_threshold)
             with st.expander(f"Cluster {clust_idx}:"):
                 st.write("\n".join([f"- {x:short}" for x in clust_ins]))
