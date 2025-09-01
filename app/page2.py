@@ -188,12 +188,20 @@ def show_results():
                 )
 
             with insert_view:
-                st.header("Insert view")
-                if tabbed:
-                    seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters, "seq2")
+                st.header("Sequence view")
 
                 genome_choice = st.multiselect("Genome:", res_choice, None)
                 if not len(genome_choice):
                     genome_choice = res_choice
 
-                plot_inserts(all_results, genome_choice, seq_id, clust_sel, **params)
+                if not tabbed:
+                    plot_inserts(
+                        all_results, genome_choice, seq_id, clust_sel, **params
+                    )
+                else:
+                    seq_id2, clust_sel2 = select_seq_id(
+                        pos_seq_ids, pos_clusters, "seq2"
+                    )
+                    plot_inserts(
+                        all_results, genome_choice, seq_id2, clust_sel2, **params
+                    )

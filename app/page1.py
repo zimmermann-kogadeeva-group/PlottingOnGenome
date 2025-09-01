@@ -31,7 +31,6 @@ def get_main_inputs(workdir=False):
     # Text inputs
     genome_fh = None
     search_terms = None
-    email = None
     retmax = None
 
     if genome_src == "NCBI":
@@ -41,7 +40,6 @@ def get_main_inputs(workdir=False):
             key="search_term",
         ).split(",")
 
-        email = st.text_input("Email:", key="email")
         retmax = st.text_input(
             "Retmax (Max. # of records from NCBI)", 200, key="retmax"
         )
@@ -82,7 +80,6 @@ def get_main_inputs(workdir=False):
 
     most_inputs = {
         "seq_fh": seq_fh,
-        "email": email,
         "retmax": retmax,
         "fwd_suf": fwd_suf,
         "rev_suf": rev_suf,
@@ -109,7 +106,6 @@ def get_main_inputs(workdir=False):
 def run_pipeline(
     seq_fh,
     genome_fh,
-    email,
     search_term,
     retmax,
     fwd_suf,
@@ -139,7 +135,6 @@ def run_pipeline(
                 work_dir=dirpath,
                 genome_file=genome_path,
                 search_term=search_term,
-                email=email,
                 retmax=retmax,
                 fwd_suffix=fwd_suf,
                 rev_suffix=rev_suf,
