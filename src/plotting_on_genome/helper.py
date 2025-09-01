@@ -1,5 +1,6 @@
 import hashlib
 import subprocess
+import warnings
 from copy import deepcopy
 from pathlib import Path
 
@@ -14,13 +15,15 @@ def shift_feature(feature, shift=0):
     return new_feature
 
 
-def _download_genome(search_term, email, retmax=100):
+def _download_genome(search_term, retmax=100):
     # Set the email address for NCBI queries
-    Entrez.email = email
+    # Entrez.email = email
 
     # Get record ids from NCBI
-    with Entrez.esearch(db="nucleotide", term=search_term, retmax=retmax) as handle:
-        res = Entrez.read(handle)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        with Entrez.esearch(db="nucleotide", term=search_term, retmax=retmax) as handle:
+            res = Entrez.read(handle)
 
     # Download these records from NCBI rettype="gbwithparts" is used to
     # download the sequences with record features
@@ -35,10 +38,10 @@ def _download_genome(search_term, email, retmax=100):
     return data_gb
 
 
-def download_genome(search_term, email, retmax=100, output_path=None):
+def download_genome(search_term, retmax=100, output_path=None):
 
     if output_path is None:
-        data_gb = _download_genome(search_term, email, retmax)
+        data_gb = _download_genome(search_term, retmax)
 
     else:
         output_path = Path(output_path)
@@ -50,7 +53,7 @@ def download_genome(search_term, email, retmax=100, output_path=None):
 
         # Otherwise retrieve the records from NCBI
         else:
-            data_gb = _download_genome(search_term, email, retmax)
+            data_gb = _download_genome(search_term, retmax)
             SeqIO.write(data_gb.values(), output_path, "genbank")
 
     return data_gb
@@ -63,13 +66,10 @@ def get_genome_file(work_dir, search_term, retmax):
     return work_dir / f"db_{search_hashed}.gbk"
 
 
-def get_genome(genome_file, genome_fasta, search_term=None, email=None, retmax=None):
+def get_genome(genome_file, genome_fasta, search_term=None, retmax=None):
     # Get genome
     if search_term is not None:
-        if email is None:
-            raise ValueError("Email is required for NCBI API")
-
-        genome = download_genome(search_term, email, retmax, genome_file)
+        genome = download_genome(search_term, retmax, genome_file)
     else:
         if genome_file.suffix == ".gff":
             genome = SeqIO.to_dict(GFF.parse(genome_file))

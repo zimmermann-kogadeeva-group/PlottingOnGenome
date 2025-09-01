@@ -4,6 +4,8 @@ FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=1000
+
 WORKDIR /app
 
 COPY pyproject.toml /app
