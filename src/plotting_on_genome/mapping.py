@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
-
 import json
 import re
 from itertools import accumulate, product
 from pathlib import Path
+from warnings import warn
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -16,8 +15,9 @@ from dna_features_viewer import (
 from matplotlib.colorbar import ColorbarBase
 from matplotlib.colors import LinearSegmentedColormap
 
-from .helper import get_genome, get_genome_file, run_blast, shift_feature
-from .insert import Insert, fig_axvline
+from .genome_funcs import get_genome, get_genome_file, run_blast
+from .helper import fig_axvline, get_genes_graphic_record, shift_feature
+from .insert import Insert
 
 
 def _get_length(fwd, rev):
@@ -29,6 +29,7 @@ def _get_length(fwd, rev):
         return fwd.hit_end - rev.hit_start
 
 
+# TODO: might need to delete this function
 def _get_contig_label(contig, mapped_ids, show_labels=True):
     if show_labels:
         if mapped_ids and contig.id in mapped_ids:
@@ -37,6 +38,41 @@ def _get_contig_label(contig, mapped_ids, show_labels=True):
             return None
     else:
         return None
+
+
+def fix_ids(seq_ids, insert_ids):
+    seq_id_from_ins_ids = {x[0] for x in insert_ids}
+    seq_ids = set(seq_ids)
+    common_seq_ids = seq_ids.intersection(seq_id_from_ins_ids)
+    if common_seq_ids:
+        warn(
+            f"seq_ids and insert_ids have ids in common: {common_seq_ids}!. "
+            "From the ones in common, only the inserts specified using "
+            "insert_ids will be returned"
+        )
+        seq_ids = seq_ids - common_seq_ids
+    return seq_ids, insert_ids
+
+
+# Maybe have this as a decorator
+def filter_inserts(
+    inserts,
+    insert_type="both",
+    filter_threshold=None,
+):
+    # Apply the coverage filter
+    if filter_threshold is not None:
+        if not 0 <= filter_threshold <= 1:
+            raise ValueError("Filter value needs to be between 0 and 1")
+
+        inserts = [x for x in inserts if x.coverage > filter_threshold]
+
+    if insert_type == "paired":
+        inserts = [x for x in inserts if x.paired]
+    elif insert_type == "unpaired":
+        inserts = [x for x in inserts if not x.paired]
+
+    return inserts
 
 
 class Mapping(object):
@@ -252,65 +288,69 @@ class Mapping(object):
             for gene in self.genome[hit_id][start_:end_].features
         ]
 
-    def get(
-        self,
-        seq_id_or_idx=None,
-        insert_type="both",
-        filter_threshold=None,
+    def get_by_insert_id(
+        self, insert_ids=None, insert_type="both", filter_threshold=None
     ):
-        assert insert_type in ("paired", "unpaired", "both"), f"{insert_type=}"
+        if insert_ids is None:
+            insert_ids = self.insert_ids
 
-        if seq_id_or_idx is None:
-            seq_id_or_idx = self.seq_ids
+        # check that input is a list of lists
+        assert isinstance(insert_ids, (set, list, tuple)) and all(
+            isinstance(item, (list, tuple)) for item in insert_ids
+        ), "insert_ids needs to be an iterable of seq_id and insert index pairs"
+
+        inserts = [
+            self._all_inserts[insert_id[0]][insert_id[1]] for insert_id in insert_ids
+        ]
+
+        return filter_inserts(
+            inserts, insert_type=insert_type, filter_threshold=filter_threshold
+        )
+
+    def get_by_seq_id(self, seq_ids=None, insert_type="both", filter_threshold=None):
+        # If not given, all inserts for all seq_ids are returned
+        if seq_ids is None:
+            seq_ids = self.seq_ids
+
+        if isinstance(seq_ids, str):
+            seq_ids = (seq_ids,)
+
+        inserts = [
+            insert
+            for seq_id in seq_ids
+            if isinstance(seq_id, str)
+            for insert in self._all_inserts[seq_id]
+        ]
+
+        return filter_inserts(
+            inserts, insert_type=insert_type, filter_threshold=filter_threshold
+        )
+
+    def get(
+        self, seq_ids=None, insert_ids=None, insert_type="both", filter_threshold=None
+    ):
+        if isinstance(seq_ids, str):
+            seq_ids = (seq_ids,)
+        # Make sure that either seq_ids or insert_ids are specified
+        # Then check that seq_ids are not duplicated between the two lists
+        if seq_ids is None and insert_ids is None:
+            seq_ids = self.seq_ids
+        elif seq_ids is not None and insert_ids is not None:
+            seq_ids, insert_ids = fix_ids(seq_ids, insert_ids)
 
         inserts = []
-        if isinstance(seq_id_or_idx, (str, int)):
-            inserts = self.__getitem__(seq_id_or_idx)
-
-        elif isinstance(seq_id_or_idx, (tuple, list, set)):
-            by_tuple = [
-                self._all_inserts[insert_id[0]][insert_id[1]]
-                for insert_id in seq_id_or_idx
-                if isinstance(insert_id, (tuple, list)) and insert_id in self
-            ]
-            by_str = [
-                insert
-                for seq_id in seq_id_or_idx
-                if isinstance(seq_id, str)
-                for insert in self._all_inserts[seq_id]
-            ]
-            inserts = by_tuple + by_str
-
-        # Apply the coverage filter
-        if filter_threshold is not None:
-            if not 0 <= filter_threshold <= 1:
-                raise ValueError("Filter value needs to be between 0 and 1")
-
-            inserts = [x for x in inserts if x.coverage > filter_threshold]
-
-        if insert_type == "paired":
-            inserts = [x for x in inserts if x.paired]
-        elif insert_type == "unpaired":
-            inserts = [x for x in inserts if not x.paired]
-
-        return inserts
-
-    def get_insert_ids(
-        self, seq_id_or_idx=None, insert_type="both", filter_threshold=None, **kwargs
-    ):
-        return [
-            (x.seq_id, x.idx)
-            for x in self.get(
-                seq_id_or_idx=seq_id_or_idx,
-                insert_type=insert_type,
-                filter_threshold=filter_threshold,
+        if seq_ids is not None:
+            inserts.extend(self.get_by_seq_id(seq_ids, insert_type, filter_threshold))
+        if insert_ids is not None:
+            inserts.extend(
+                self.get_by_insert_id(insert_ids, insert_type, filter_threshold)
             )
-        ]
+        return inserts
 
     def get_seq_ids(self, insert_type="both", filter_threshold=None, **kwargs):
         return [
             x.seq_id
-            for x in self.get(
+            for x in self.get_by_seq_id(
                 insert_type=insert_type, filter_threshold=filter_threshold
             )
         ]
@@ -348,16 +388,18 @@ class Mapping(object):
 
     def genes_to_dataframe(
         self,
-        seq_id_or_idx=None,
+        seq_ids=None,
+        insert_ids=None,
         insert_type="both",
         filter_threshold=None,
         buffer=4000,
     ):
+        # Make sure that the buffer is of the correct type
         if isinstance(buffer, int):
             buffer = (buffer, buffer)
         assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
 
-        inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
+        inserts = self.get(seq_ids, insert_ids, insert_type, filter_threshold)
 
         df_genes = pd.DataFrame(
             [], columns=("start", "end", "strand", "type", "coverage", "locus_tag")
@@ -377,18 +419,20 @@ class Mapping(object):
     # TODO: split this into two: one for genome features and one for insert features
     def get_graphic_features(
         self,
-        seq_id_or_idxs=None,
+        seq_ids=None,
+        insert_ids=None,
         insert_type="both",
         filter_threshold=None,
-        show_labels=True,
+        contig_labels=True,
         seq_labels=None,
         col1="#ebf3ed",
         col2="#2e8b57",
         **kwargs,
     ):
 
+        inserts = self.get(seq_ids, insert_ids, insert_type, filter_threshold)
+
         seq_labels = seq_labels or dict()
-        inserts = set(self.get(seq_id_or_idxs, insert_type, filter_threshold))
 
         # Get just the sequences for each NCBI record and order them by size in
         # descending order. 'x.features[0]' to get the whole sequence for a
@@ -418,7 +462,9 @@ class Mapping(object):
                 GraphicFeature(
                     start=shifts[i],
                     end=shifts[i + 1],
-                    label=(None if not show_labels or x.id not in mapped_ids else x.id),
+                    label=(
+                        None if not contig_labels or x.id not in mapped_ids else x.id
+                    ),
                     color=col1,
                     linecolor="#000000",
                     **kwargs,
@@ -438,11 +484,7 @@ class Mapping(object):
                 end=insert.end + shifts[ids.index(insert.hit_id)],
                 strand=insert.strand,
                 color=col2,
-                label=(
-                    None
-                    if not show_labels
-                    else seq_labels.get((insert.seq_id, insert.idx))
-                ),
+                label=seq_labels.get((insert.seq_id, insert.idx)),
                 linecolor=linecolor,
                 **kwargs,
             )
@@ -453,7 +495,8 @@ class Mapping(object):
 
     def plot(
         self,
-        seq_id_or_idxs=None,
+        seq_ids=None,
+        insert_ids=None,
         insert_type="both",
         filter_threshold=None,
         contig_labels=True,
@@ -468,7 +511,8 @@ class Mapping(object):
             kwargs["figsize"] = (10, 8)
 
         seq_len, features = self.get_graphic_features(
-            seq_id_or_idxs,
+            seq_ids,
+            insert_ids,
             insert_type,
             filter_threshold,
             contig_labels,
@@ -525,7 +569,8 @@ class Mapping(object):
 
     def plot_inserts(
         self,
-        seq_id_or_idx,
+        seq_ids=None,
+        insert_ids=None,
         insert_type="both",
         filter_threshold=None,
         buffer=4000,
@@ -537,23 +582,26 @@ class Mapping(object):
         backend="matplotlib",
         **kwargs,
     ):
+        # Make sure that the buffer is of the correct type
         if isinstance(buffer, int):
             buffer = (buffer, buffer)
         assert isinstance(buffer, (tuple, list)) and len(buffer) == 2
 
-        inserts = self.get(seq_id_or_idx, insert_type, filter_threshold)
+        inserts = self.get(seq_ids, insert_ids, insert_type, filter_threshold)
+
         cmap = None
         if colorbar:
             cmap = LinearSegmentedColormap.from_list("custom", [col1, col2])
 
         features = [x.get_graphic_feature(col2) for x in inserts]
 
-        # TODO: uncomment and use get_genes from InsertsDict
-        start = min([x.start for x in inserts])  # inserts[0].start
-        end = max([x.end for x in inserts])  # inserts[0].end
+        inserts_starts = [x.start for x in inserts]
+        inserts_ends = [x.end for x in inserts]
 
-        intersection_start = max([x.start for x in inserts])
-        intersection_end = min([x.end for x in inserts])
+        start = min(inserts_starts)  # inserts[0].start
+        end = max(inserts_ends)  # inserts[0].end
+        intersection_start = max(inserts_starts)
+        intersection_end = min(inserts_ends)
 
         # Plot the query sequence on the upper axes
         rec_seqs = GraphicRecord(
@@ -564,8 +612,17 @@ class Mapping(object):
 
         gene_buf_start = abs(inserts[0].start - start) + buffer[0]
         gene_buf_end = abs(inserts[0].end - end) + buffer[1]
-        rec_genes = inserts[0].get_genes_graphic_record(
-            (gene_buf_start, gene_buf_end), col1, feature_types, cmap
+        genes = inserts[0].get_genes((gene_buf_start, gene_buf_end))
+
+        # Get the GraphicRecord obj to be plotted
+        rec_genes = get_genes_graphic_record(
+            genes,
+            start,
+            end,
+            buffer=buffer,
+            col=col1,
+            feature_types=feature_types,
+            cmap=cmap,
         )
 
         if "figsize" not in kwargs:
@@ -590,8 +647,9 @@ class Mapping(object):
                     ax_cb, cmap=cmap, orientation="vertical", label="gene coverage"
                 )
 
-            fig_axvline(axs, intersection_start)
-            fig_axvline(axs, intersection_end)
+            if intersection_start < intersection_end:
+                fig_axvline(axs, intersection_start)
+                fig_axvline(axs, intersection_end)
 
             return axs
         else:
