@@ -1,3 +1,4 @@
+from collections import defaultdict
 from itertools import chain
 
 import pandas as pd
@@ -96,11 +97,17 @@ def select_genomes(genome_labels):
     return res_choice
 
 
-def select_seq_id(possible_seq_ids, clusters_dict, st_key):
+def select_seq_id(possible_seq_ids, possible_clusters, st_key):
+
+    clusters_as_list = [
+        (g, clust_idx)
+        for g, clusters in possible_clusters.items()
+        for clust_idx, clust in enumerate(clusters)
+    ]
 
     sel = st.multiselect(
         "Select sequence id / cluster:",
-        possible_seq_ids + list(clusters_dict),
+        possible_seq_ids + clusters_as_list,
         None,
         format_func=lambda x: (
             f"{x[0]} - cluster {x[1]}" if isinstance(x, (list, tuple)) else x
@@ -109,24 +116,33 @@ def select_seq_id(possible_seq_ids, clusters_dict, st_key):
     )
 
     sel = set(sel)
-    clusters = {x: clusters_dict[x] for x in sel if x in clusters_dict}
-    seq_id = list(sel - set(clusters.keys()))
+    clusters_sel = [x for x in sel if x in clusters_as_list]
+    seq_id_sel = list(sel - set(clusters_sel))
 
-    return seq_id, clusters
+    # Convert to original format
+    clusters_subset = defaultdict(list)
+    for g, clust_idx in clusters_sel:
+        clusters_subset[g].append(possible_clusters[g][clust_idx])
+
+    return seq_id_sel, clusters_subset
 
 
 def get_inserts_cond(seq_ids, clusters):
-    cluster_ins_ids = list(chain.from_iterable(clusters.values()))
-    return " or ".join(
-        [
-            (
-                f"(seq_id == '{seq_id[0]}' and  insert_idx == {seq_id[1]})"
-                if len(seq_id) == 2
-                else f"seq_id == '{seq_id}'"
-            )
-            for seq_id in set(seq_ids + cluster_ins_ids)
-        ]
-    )
+    query = f"seq_id in {list(seq_ids)}"
+
+    if clusters:
+        clusters_query = " or ".join(
+            [
+                f"(genome == '{g}' and seq_id == '{seq_id}' "
+                f"and insert_idx == {insert_idx})"
+                for g, clusters_per_genome in clusters.items()
+                for cluster in clusters_per_genome
+                for (seq_id, insert_idx) in cluster
+            ]
+        )
+        query = query + " or " + clusters_query
+
+    return query
 
 
 def show_results():
@@ -143,13 +159,14 @@ def show_results():
             genome_view, insert_view = st.columns(2)
 
         res_choice = select_genomes(all_results.keys())
+        res_choice_all_seqs = {x: None for x in res_choice}
 
         if len(res_choice):
             df_insert_presence = all_results.get_insert_presence_df(
-                res_choice, **params
+                res_choice_all_seqs, **params
             )
-            df_inserts = all_results.get_inserts_df(res_choice, **params)
-            df_genes = all_results.get_genes_df(res_choice, **params).map(
+            df_inserts = all_results.get_inserts_df(res_choice_all_seqs, **params)
+            df_genes = all_results.get_genes_df(res_choice_all_seqs, **params).map(
                 lambda x: ",".join(x) if isinstance(x, list) else x
             )
 

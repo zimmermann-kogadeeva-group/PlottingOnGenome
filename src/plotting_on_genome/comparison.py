@@ -1,4 +1,3 @@
-from collections import defaultdict
 from itertools import chain, cycle
 
 import matplotlib.pyplot as plt
@@ -6,16 +5,6 @@ import numpy as np
 import pandas as pd
 from dna_features_viewer import CircularGraphicRecord
 from matplotlib import color_sequences
-
-
-def clusters_to_seq_labels(clusters):
-    # Get sequences / insert labels based on clusters
-    seq_labels = defaultdict(dict)
-    if clusters is not None:
-        for genome, clusters_per_genome in clusters.items():
-            for clust_idx, cluster in enumerate(clusters_per_genome):
-                seq_labels[genome][tuple(cluster[-1])] = f"Cluster {clust_idx}"
-    return seq_labels
 
 
 def merge_sets(set1, set2):
