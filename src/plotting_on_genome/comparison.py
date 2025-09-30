@@ -1,3 +1,4 @@
+from collections import defaultdict
 from itertools import chain, cycle
 
 import matplotlib.pyplot as plt
@@ -5,6 +6,50 @@ import numpy as np
 import pandas as pd
 from dna_features_viewer import CircularGraphicRecord
 from matplotlib import color_sequences
+
+
+class Clusters(dict):
+    def __init__(self, clusters, genomes=None):
+        super(Clusters, self).__init__(clusters)
+
+        self.genomes = genomes or {g for g, clust_idx in self.keys()}
+        self.cluster_labels = list(self.keys())
+
+    def __contains__(self, item):
+        return item in self.cluster_labels
+
+    @property
+    def insert_ids(self):
+        insert_ids = {
+            genome: list(
+                chain.from_iterable(
+                    (
+                        insert_ids
+                        for (g, clust_idx), insert_ids in self.items()
+                        if g == genome
+                    )
+                )
+            )
+            for genome in self.genomes
+        }
+        return insert_ids
+
+    @property
+    def insert_labels(self):
+        seq_labels = defaultdict(dict)
+        for g, clust_idx in self.cluster_labels:
+            seq_labels[g][
+                tuple(self.__getitem__((g, clust_idx))[-1])
+            ] = f"Cluster {clust_idx}"
+        return seq_labels
+
+    def subset(self, selection):
+        return Clusters(
+            {
+                (g, clust_idx): self.__getitem__((g, clust_idx))
+                for g, clust_idx in selection
+            }
+        )
 
 
 def merge_sets(set1, set2):
@@ -94,15 +139,32 @@ class Comparison(dict):
 
     # TODO: this needs to be rethought as well (structure of the output)
     def get_clusters(
-        self, genomes=None, insert_type="both", filter_threshold=None, **kwargs
+        self,
+        genomes=None,
+        insert_type="both",
+        filter_threshold=None,
+        plain_dict=True,
+        **kwargs,
     ):
         if genomes is None:
             genomes = self.keys()
 
-        return {
-            g: self.__getitem__(g).get_clusters(insert_type, filter_threshold)
-            for g in genomes
-        }
+        if plain_dict:
+            return {
+                g: self.__getitem__(g).get_clusters(insert_type, filter_threshold)
+                for g in genomes
+            }
+        else:
+            return Clusters(
+                {
+                    (g, clust_idx): cluster
+                    for g in genomes
+                    for clust_idx, cluster in enumerate(
+                        self.__getitem__(g).get_clusters(insert_type, filter_threshold)
+                    )
+                },
+                genomes=genomes,
+            )
 
     # TODO: this needs to be rethought as well (structure of the output)
     def get_genes_df(

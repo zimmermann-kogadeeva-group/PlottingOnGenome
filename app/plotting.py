@@ -1,30 +1,6 @@
-from collections import defaultdict
-from itertools import chain
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
-
-
-class Clusters(dict):
-    def __init__(self, *args, **kwargs):
-        super(Clusters, self).__init__(*args, **kwargs)
-
-    @property
-    def labels(self):
-        seq_labels = defaultdict(dict)
-        for g, clusters_per_genome in self.items():
-            for clust_idx, cluster in enumerate(clusters_per_genome):
-                seq_labels[g][tuple(cluster[-1])] = f"Cluster {clust_idx}"
-        return seq_labels
-
-    @property
-    def insert_ids(self):
-        insert_ids = {
-            g: list(chain.from_iterable(clusters_per_genome))
-            for g, clusters_per_genome in self.items()
-        }
-        return insert_ids
 
 
 def plot_inserts_dist(data, palette="tab10"):
@@ -128,7 +104,7 @@ def plot_inserts(
             st.pyplot(fig)
             plt.close()
 
-        for clust_idx, insert_ids in enumerate(clusters[genome]):
+        for (genome, clust_idx), insert_ids in clusters.items():
             clust_inserts = comparison[genome].get_by_insert_id(
                 insert_ids, insert_type, filter_threshold
             )
@@ -180,11 +156,10 @@ def plot_genomes(
     if not len(seq_ids):
         seq_ids = None
 
-    clusters = Clusters(clusters)
     fig = comparison.plot(
         seq_ids={g: seq_ids for g in genome_choice},
         insert_ids=clusters.insert_ids,
-        seq_labels=clusters.labels,
+        seq_labels=clusters.insert_labels,
         contig_labels=contig_labels,
         insert_type=insert_type,
         filter_threshold=filter_threshold,

@@ -1,6 +1,3 @@
-from collections import defaultdict
-from itertools import chain
-
 import pandas as pd
 import streamlit as st
 from plotting import plot_genomes, plot_inserts, plot_inserts_dist
@@ -99,15 +96,9 @@ def select_genomes(genome_labels):
 
 def select_seq_id(possible_seq_ids, possible_clusters, st_key):
 
-    clusters_as_list = [
-        (g, clust_idx)
-        for g, clusters in possible_clusters.items()
-        for clust_idx, clust in enumerate(clusters)
-    ]
-
     sel = st.multiselect(
         "Select sequence id / cluster:",
-        possible_seq_ids + clusters_as_list,
+        possible_seq_ids + possible_clusters.cluster_labels,
         None,
         format_func=lambda x: (
             f"{x[0]} - cluster {x[1]}" if isinstance(x, (list, tuple)) else x
@@ -116,15 +107,10 @@ def select_seq_id(possible_seq_ids, possible_clusters, st_key):
     )
 
     sel = set(sel)
-    clusters_sel = [x for x in sel if x in clusters_as_list]
+    clusters_sel = [x for x in sel if x in possible_clusters]
     seq_id_sel = list(sel - set(clusters_sel))
 
-    # Convert to original format
-    clusters_subset = defaultdict(list)
-    for g, clust_idx in clusters_sel:
-        clusters_subset[g].append(possible_clusters[g][clust_idx])
-
-    return seq_id_sel, clusters_subset
+    return seq_id_sel, possible_clusters.subset(clusters_sel)
 
 
 def get_inserts_cond(seq_ids, clusters):
@@ -135,9 +121,8 @@ def get_inserts_cond(seq_ids, clusters):
             [
                 f"(genome == '{g}' and seq_id == '{seq_id}' "
                 f"and insert_idx == {insert_idx})"
-                for g, clusters_per_genome in clusters.items()
-                for cluster in clusters_per_genome
-                for (seq_id, insert_idx) in cluster
+                for (g, clust_idx), insert_ids in clusters.items()
+                for seq_id, insert_idx in insert_ids
             ]
         )
         query = query + " or " + clusters_query
@@ -172,7 +157,9 @@ def show_results():
 
             # Possible seq_ids and clusters
             pos_seq_ids = df_insert_presence.index.tolist()
-            pos_clusters = all_results.get_clusters(res_choice, **params)
+            pos_clusters = all_results.get_clusters(
+                res_choice, plain_dict=False, **params
+            )
 
             seq_id = []
             with genome_view:
