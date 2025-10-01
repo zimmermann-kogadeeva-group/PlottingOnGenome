@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
+from matplotlib import color_sequences
 
 
 def plot_inserts_dist(data, palette="tab10"):
@@ -143,6 +144,7 @@ def plot_genomes(
         facet = st.toggle("Separate plot for each genome", value=False)
         if facet:
             num_cols = st.number_input("Number of columns", value=3, min_value=1)
+        palette = st.selectbox("Palette", options=list(color_sequences.keys()))
 
     if not len(seq_ids):
         seq_ids = None
@@ -151,7 +153,6 @@ def plot_genomes(
     if cluster_labels:
         seq_labels = clusters.insert_labels
 
-    # TODO: show genome labels does not work
     fig = comparison.plot(
         seq_ids={g: seq_ids for g in genome_choice},
         insert_ids=clusters.insert_ids,
@@ -161,6 +162,7 @@ def plot_genomes(
         filter_threshold=filter_threshold,
         show_titles=show_titles,
         facet_wrap=num_cols,
+        palette=palette,
     )
     st.pyplot(fig, use_container_width=True)
     plt.close()

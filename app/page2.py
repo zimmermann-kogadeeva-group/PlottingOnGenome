@@ -220,4 +220,5 @@ def show_results():
                 with st.expander("Table of genes in selected sequences"):
                     st.write(df_genes.query(get_table_query(seq_id, clust_sel)))
 
+                # TODO: download all sequence view plots is needed
                 plot_inserts(all_results, res_choice, seq_id, clust_sel, **params)
