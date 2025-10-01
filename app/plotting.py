@@ -68,6 +68,14 @@ def plot_inserts(
         if st.toggle("Display genes", value=True):
             feature_types.update(("gene",))
 
+        show_mappings = st.toggle(
+            "Show additional mapping information",
+            value=False,
+            help=(
+                "Draws additional vertical lines to indicate "
+                "where fwd/rev sequences are mapped"
+            ),
+        )
         colorbar = st.toggle("Color genes by overlap", value=False)
 
         col1 = st.color_picker("Genes/CDS color:", value=col1)
@@ -91,6 +99,7 @@ def plot_inserts(
                 colorbar=colorbar,
                 col1=col1,
                 col2=col2,
+                show_mappings=show_mappings,
             )
             st.pyplot(fig)
             plt.close()

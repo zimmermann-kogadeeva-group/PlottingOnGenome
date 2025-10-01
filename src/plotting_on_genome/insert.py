@@ -26,22 +26,28 @@ def set_feature(feature, **kwargs):
     return new_feature
 
 
-class Insert(object):
-
-    def _get_endpoints(self, hsp1, hsp2=None, avg_insert_length=0):
-        # TODO: check seq_len
-        if hsp2 is not None:
-            if hsp1.hit_strand == 1:
-                start = hsp1.hit_start
-                end = hsp2.hit_end
-            else:
-                start = hsp2.hit_start
-                end = hsp1.hit_end
-            return start, end
-        else:
+def _get_endpoints(hsp1, hsp2=None, avg_insert_length=0):
+    # TODO: check seq_len
+    if hsp2 is not None:
+        if hsp1.hit_strand == 1:
             start = hsp1.hit_start
-            end = max(hsp1.hit_end, hsp1.hit_start + avg_insert_length)
-            return start, end
+            middle1 = hsp1.hit_end
+            middle2 = hsp2.hit_start
+            end = hsp2.hit_end
+        else:
+            start = hsp2.hit_start
+            middle1 = hsp2.hit_end
+            middle2 = hsp1.hit_start
+            end = hsp1.hit_end
+        return start, middle1, middle2, end
+    else:
+        start = hsp1.hit_start
+        end = max(hsp1.hit_end, hsp1.hit_start + avg_insert_length)
+        middle1 = middle2 = hsp1.hit_end
+        return start, middle1, middle2, end
+
+
+class Insert(object):
 
     def __init__(
         self,
@@ -68,9 +74,12 @@ class Insert(object):
         self.paired = True if hsp2 is not None else False
 
         if paired:
-            self.start, self.end = self._get_endpoints(hsp1, hsp2, avg_insert_len)
+            self.start, self.middle1, self.middle2, self.end = _get_endpoints(
+                hsp1, hsp2, avg_insert_len
+            )
         else:
             self.start, self.end = self.hsp1.hit_start, self.hsp1.hit_end
+            self.middle1 = self.middle2 = None
 
         self._genome = genome
 
@@ -177,6 +186,7 @@ class Insert(object):
         col2="#2e8b57",
         feature_types=None,
         colorbar=False,
+        show_mappings=False,
         axs=None,
         backend="matplotlib",
         **kwargs,
@@ -222,6 +232,9 @@ class Insert(object):
 
             fig_axvline(axs, self.start)
             fig_axvline(axs, self.end)
+            if show_mappings:
+                fig_axvline(axs, self.middle1)
+                fig_axvline(axs, self.middle2)
 
             return axs
         else:
