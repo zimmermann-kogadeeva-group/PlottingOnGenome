@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
@@ -69,7 +71,7 @@ def plot_inserts(
             feature_types.update(("gene",))
 
         show_mappings = st.toggle(
-            "Show additional mapping information",
+            "Draw mapped sequence bounds",
             value=False,
             help=(
                 "Draws additional vertical lines to indicate "
@@ -146,6 +148,7 @@ def plot_genomes(
     contig_labels, show_titles = True, True
     num_cols = None
 
+    # Get plotting options
     with st.expander("Plotting options"):
         contig_labels = st.toggle("Show contig/seq labels", value=True)
         cluster_labels = st.toggle("Show cluster labels", value=True)
@@ -158,15 +161,22 @@ def plot_genomes(
     if not len(seq_ids):
         seq_ids = None
 
-    seq_labels = None
-    if cluster_labels:
-        seq_labels = clusters.insert_labels
+    # Set seq_labels based on whether some seqs were selected
+    seq_labels = defaultdict(dict)
+    if contig_labels and (seq_ids is not None or clusters is not None):
+        seq_labels = comparison.get_labels(seq_ids, clusters.insert_ids)
+
+    # If cluster labels are preferred, overwrite seq_labels for the sequences
+    # in a cluster with the label of a cluster
+    if cluster_labels and len(clusters):
+        for g, all_labels in clusters.insert_labels.items():
+            seq_labels[g].update(all_labels)
 
     fig = comparison.plot(
         seq_ids={g: seq_ids for g in genome_choice},
         insert_ids=clusters.insert_ids,
         seq_labels=seq_labels,
-        contig_labels=contig_labels,
+        show_contig_labels=contig_labels,
         insert_type=insert_type,
         filter_threshold=filter_threshold,
         show_titles=show_titles,

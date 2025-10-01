@@ -38,9 +38,11 @@ class Clusters(dict):
     def insert_labels(self):
         seq_labels = defaultdict(dict)
         for g, clust_idx in self.cluster_labels:
-            seq_labels[g][
-                tuple(self.__getitem__((g, clust_idx))[-1])
-            ] = f"Cluster {clust_idx}"
+            insert_ids = self.__getitem__((g, clust_idx))
+            # Set it such that only one label is given per cluster
+            for insert_id in insert_ids:
+                seq_labels[g][insert_id] = None
+            seq_labels[g][insert_ids[-1]] = f"Cluster {clust_idx}"
         return seq_labels
 
     @property
@@ -153,6 +155,31 @@ class Comparison(dict):
                 genomes=genomes,
             )
 
+    def get_labels(
+        self,
+        seq_ids,
+        insert_ids=None,
+        genomes=None,
+        insert_type="both",
+        filter_threshold=None,
+    ):
+        if genomes is None:
+            genomes = self.keys()
+
+        if insert_ids is None:
+            insert_ids = {g: None for g in genomes}
+
+        if seq_ids is not None:
+            return {
+                g: {
+                    (x.seq_id, x.idx): x.seq_id
+                    for x in self.__getitem__(g).get(
+                        seq_ids=seq_ids, insert_ids=insert_ids.get(g)
+                    )
+                }
+                for g in genomes
+            }
+
     def get_genes_df(
         self,
         seq_ids=None,
@@ -189,9 +216,11 @@ class Comparison(dict):
 
         if len(genes_dfs):
             drop_by = ["start", "end", "type", "insert_idx", "seq_id", "genome"]
-            return pd.concat(genes_dfs, ignore_index=True).drop_duplicates(
+            df_genes = pd.concat(genes_dfs, ignore_index=True).drop_duplicates(
                 subset=drop_by
             )
+            df_genes.insert(0, "genome", df_genes.pop("genome"))
+            return df_genes
 
     def get_graphic_features(
         self,
@@ -199,7 +228,7 @@ class Comparison(dict):
         insert_ids=None,
         genomes_order=None,
         seq_labels=None,
-        contig_labels=True,
+        show_contig_labels=True,
         insert_type="both",
         filter_threshold=None,
         palette="tab10",
@@ -228,7 +257,7 @@ class Comparison(dict):
                 insert_ids=insert_ids.get(g),
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
-                contig_labels=contig_labels,
+                contig_labels=show_contig_labels,
                 seq_labels=seq_labels.get(g),
                 col1=col,
                 col2=col,
@@ -245,9 +274,9 @@ class Comparison(dict):
         insert_ids=None,
         genomes_order=None,
         seq_labels=None,
-        contig_labels=True,
         insert_type="both",
         filter_threshold=None,
+        show_contig_labels=True,
         show_titles=False,
         palette="tab10",
         facet_wrap=None,
@@ -260,7 +289,7 @@ class Comparison(dict):
             insert_ids,
             genomes_order,
             seq_labels,
-            contig_labels,
+            show_contig_labels,
             insert_type,
             filter_threshold,
             palette,

@@ -40,7 +40,7 @@ def _get_contig_label(contig, mapped_ids, show_labels=True):
         return None
 
 
-def fix_ids(seq_ids, insert_ids):
+def _fix_ids(seq_ids, insert_ids):
     seq_id_from_ins_ids = {x[0] for x in insert_ids}
     seq_ids = set(seq_ids)
     common_seq_ids = seq_ids.intersection(seq_id_from_ins_ids)
@@ -336,7 +336,7 @@ class Mapping(object):
         if seq_ids is None and insert_ids is None:
             seq_ids = self.seq_ids
         elif seq_ids is not None and insert_ids is not None:
-            seq_ids, insert_ids = fix_ids(seq_ids, insert_ids)
+            seq_ids, insert_ids = _fix_ids(seq_ids, insert_ids)
 
         inserts = []
         if seq_ids is not None:
@@ -402,7 +402,17 @@ class Mapping(object):
         inserts = self.get(seq_ids, insert_ids, insert_type, filter_threshold)
 
         df_genes = pd.DataFrame(
-            [], columns=("start", "end", "strand", "type", "coverage", "locus_tag")
+            [],
+            columns=(
+                "seq_id",
+                "insert_idx",
+                "start",
+                "end",
+                "strand",
+                "type",
+                "coverage",
+                "locus_tag",
+            ),
         )
         if len(inserts):
             df_genes = pd.concat(
@@ -413,6 +423,9 @@ class Mapping(object):
                     for insert in inserts
                 ]
             ).reset_index(drop=True)
+
+        for col in ("insert_idx", "seq_id"):
+            df_genes.insert(0, col, df_genes.pop(col))
 
         return df_genes
 

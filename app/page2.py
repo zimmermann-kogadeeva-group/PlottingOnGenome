@@ -150,7 +150,9 @@ def show_results():
                 st.header("Genome view")
 
                 # ==== Mapping information section ====
-                st.subheader("Mapping information", divider="green")
+                st.subheader(
+                    "Mapping information (sequences to genomes)", divider="green"
+                )
 
                 with st.expander("Table of all mapped seqs"):
                     st.write(df_inserts)
@@ -196,7 +198,9 @@ def show_results():
                 st.header("Sequence view")
 
                 # ==== Mapping information section ====
-                st.subheader("Mapping information", divider="green")
+                st.subheader(
+                    "Mapping information (genes to sequences)", divider="green"
+                )
 
                 with st.expander("Table of genes in all sequences"):
                     st.write(df_genes)
