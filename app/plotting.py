@@ -53,22 +53,12 @@ def plot_inserts(
     buffer=4000,
     **kwargs,
 ):
-
-    # Get a table of genes and display it in the webapp
-    df_genes = comparison.get_genes_df(
-        selection={g: seq_ids for g in genome_choices},
-        clusters=clusters,
-        insert_type=insert_type,
-        filter_threshold=filter_threshold,
-        buffer=buffer,
-    )
-    with st.expander("Table of genes"):
-        st.write(df_genes)
-
     # Set defaults for user-defined params
     feature_types = set()
     colorbar = False
     col1, col2 = "#ebf3ed", "#2e8b57"
+
+    clusters2 = clusters.other_repr
 
     # Get display options from the user
     with st.expander("Plotting options"):
@@ -104,7 +94,7 @@ def plot_inserts(
             st.pyplot(fig)
             plt.close()
 
-        for (genome, clust_idx), insert_ids in clusters.items():
+        for clust_idx, insert_ids in clusters2[genome]:
             clust_inserts = comparison[genome].get_by_insert_id(
                 insert_ids, insert_type, filter_threshold
             )
@@ -148,6 +138,7 @@ def plot_genomes(
 
     with st.expander("Plotting options"):
         contig_labels = st.toggle("Show contig/seq labels", value=True)
+        cluster_labels = st.toggle("Show cluster labels", value=True)
         show_titles = st.toggle("Show genome labels", value=True)
         facet = st.toggle("Separate plot for each genome", value=False)
         if facet:
@@ -156,10 +147,15 @@ def plot_genomes(
     if not len(seq_ids):
         seq_ids = None
 
+    seq_labels = None
+    if cluster_labels:
+        seq_labels = clusters.insert_labels
+
+    # TODO: show genome labels does not work
     fig = comparison.plot(
         seq_ids={g: seq_ids for g in genome_choice},
         insert_ids=clusters.insert_ids,
-        seq_labels=clusters.insert_labels,
+        seq_labels=seq_labels,
         contig_labels=contig_labels,
         insert_type=insert_type,
         filter_threshold=filter_threshold,

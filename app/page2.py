@@ -54,32 +54,15 @@ def sidebar_opts():
     return params
 
 
-def download_tables(df_inserts, df_genes):
-
-    st.write(
-        df_inserts.groupby(["genome", "insert_paired"], as_index=False)
+def get_pairing_info(data):
+    return (
+        data.groupby(["genome", "insert_paired"], as_index=False)
         .agg(num_inserts=pd.NamedAgg("seq_id", "nunique"))
         .pivot(index="insert_paired", columns="genome", values="num_inserts")
         .reindex(index=[False, True])
         .rename(index={False: "Unpaired", True: "Paired"})
         .rename_axis(index="")
         .fillna(0)
-    )
-
-    st.download_button(
-        label="Download all mapped seqs as CSV",
-        data=df_inserts.pipe(convert_df, index=False),
-        file_name="inserts.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
-
-    st.download_button(
-        label="Download all genes as CSV",
-        data=df_genes.pipe(convert_df, index=False),
-        file_name="genes.csv",
-        mime="text/csv",
-        use_container_width=True,
     )
 
 
@@ -113,7 +96,7 @@ def select_seq_id(possible_seq_ids, possible_clusters, st_key):
     return seq_id_sel, possible_clusters.subset(clusters_sel)
 
 
-def get_inserts_cond(seq_ids, clusters):
+def get_table_query(seq_ids, clusters):
     query = f"seq_id in {list(seq_ids)}"
 
     if clusters:
@@ -147,6 +130,7 @@ def show_results():
         res_choice_all_seqs = {x: None for x in res_choice}
 
         if len(res_choice):
+
             df_insert_presence = all_results.get_insert_presence_df(
                 res_choice_all_seqs, **params
             )
@@ -165,23 +149,40 @@ def show_results():
             with genome_view:
                 st.header("Genome view")
 
-                # download all genes and inserts
-                download_tables(df_inserts, df_genes)
+                # ==== Mapping information section ====
+                st.subheader("Mapping information", divider="green")
 
-                with st.expander("Mapped seqs presence/absence table"):
+                with st.expander("Table of all mapped seqs"):
+                    st.write(df_inserts)
+                    # download all inserts
+                    st.download_button(
+                        label="Download",
+                        data=df_inserts.pipe(convert_df, index=False),
+                        file_name="inserts.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+
+                with st.expander("Presence/absence table"):
                     st.write(df_insert_presence)
 
+                with st.expander("Sequence pairing info"):
+                    st.write(df_inserts.pipe(get_pairing_info))
+
+                # ==== Quality plots section ====
+                st.subheader("Quality plots", divider="green")
+
+                with st.expander("Distribution of mapped seqs"):
+                    plot_inserts_dist(df_inserts)
+
+                # ====  Plot sequences on genomes section ====
+                st.subheader("Plot sequences on genomes", divider="green")
                 # Select inserts
                 seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters, "seq1")
 
                 if seq_id or clust_sel:
-                    df_inserts = df_inserts.query(get_inserts_cond(seq_id, clust_sel))
-
-                with st.expander("Table of mapped seqs"):
-                    st.write(df_inserts)
-
-                with st.expander("Distribution of mapped seqs"):
-                    plot_inserts_dist(df_inserts)
+                    with st.expander("Table of mapped sequences"):
+                        st.write(df_inserts.query(get_table_query(seq_id, clust_sel)))
 
                 plot_genomes(
                     all_results,
@@ -194,18 +195,29 @@ def show_results():
             with insert_view:
                 st.header("Sequence view")
 
-                genome_choice = st.multiselect("Genome:", res_choice, None)
-                if not len(genome_choice):
-                    genome_choice = res_choice
+                # ==== Mapping information section ====
+                st.subheader("Mapping information", divider="green")
 
-                if not tabbed:
-                    plot_inserts(
-                        all_results, genome_choice, seq_id, clust_sel, **params
+                with st.expander("Table of genes in all sequences"):
+                    st.write(df_genes)
+
+                    st.download_button(
+                        label="Download",
+                        data=df_genes.pipe(convert_df, index=False),
+                        file_name="genes.csv",
+                        mime="text/csv",
+                        use_container_width=True,
                     )
-                else:
-                    seq_id2, clust_sel2 = select_seq_id(
+
+                # ==== Plotting section ====
+                st.subheader("Plot sequence or cluster of sequences", divider="green")
+
+                if tabbed:
+                    seq_ids, clust_sel = select_seq_id(
                         pos_seq_ids, pos_clusters, "seq2"
                     )
-                    plot_inserts(
-                        all_results, genome_choice, seq_id2, clust_sel2, **params
-                    )
+
+                with st.expander("Table of genes in selected sequences"):
+                    st.write(df_genes.query(get_table_query(seq_id, clust_sel)))
+
+                plot_inserts(all_results, res_choice, seq_id, clust_sel, **params)

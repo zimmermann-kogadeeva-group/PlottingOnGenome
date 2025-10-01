@@ -43,6 +43,13 @@ class Clusters(dict):
             ] = f"Cluster {clust_idx}"
         return seq_labels
 
+    @property
+    def other_repr(self):
+        other = defaultdict(list)
+        for (g, clust_idx), insert_ids in self.items():
+            other[g].append((clust_idx, insert_ids))
+        return other
+
     def subset(self, selection):
         return Clusters(
             {
@@ -52,30 +59,11 @@ class Clusters(dict):
         )
 
 
-def merge_sets(set1, set2):
-    set1_cond = set1 is None or not len(set1)
-    set2_cond = set2 is None or not len(set2)
-    if set1_cond and not set2_cond:
-        return set2
-    elif set2_cond and not set1_cond:
-        return set1
-    elif set1_cond and set2_cond:
-        return None
-    else:
-        return list(set([*set1, *set2]))
-
-
-def merge_selections(selection, seq_labels):
-    keys = set([*selection.keys(), *seq_labels.keys()])
-    return {k: merge_sets(selection[k], list(seq_labels[k].keys())) for k in keys}
-
-
 class Comparison(dict):
 
     def __init__(self, *args, **kwargs):
         super(Comparison, self).__init__(*args, **kwargs)
 
-    # TODO: This needs to be rethought
     def get_inserts(
         self,
         genomes=None,
@@ -137,7 +125,6 @@ class Comparison(dict):
 
         return df_insert_presence
 
-    # TODO: this needs to be rethought as well (structure of the output)
     def get_clusters(
         self,
         genomes=None,
@@ -166,7 +153,6 @@ class Comparison(dict):
                 genomes=genomes,
             )
 
-    # TODO: this needs to be rethought as well (structure of the output)
     def get_genes_df(
         self,
         seq_ids=None,
@@ -253,7 +239,6 @@ class Comparison(dict):
 
         return res
 
-    # TODO: this needs to be rethought as well (structure of the output)
     def plot(
         self,
         seq_ids=None,
@@ -309,13 +294,17 @@ class Comparison(dict):
             features = list(chain.from_iterable([x[1] for x in res.values()]))
             rec = CircularGraphicRecord(max([x[0] for x in res.values()]), features)
             _ = rec.plot(axs[0], annotate_inline=False)
-            axs[0].set_title(", ".join(list(genome_labels)))
+
+            if show_titles:
+                axs[0].set_title(", ".join(list(genome_labels)))
 
         else:
             for (label, (seq_len, features)), ax in zip(res.items(), axs.flatten()):
                 rec = CircularGraphicRecord(seq_len, features)
                 _ = rec.plot(ax, annotate_inline=False)
-                ax.set_title(label)
+
+                if show_titles:
+                    ax.set_title(label)
 
             # Remove redundant axis
             for ax in axs[num_genomes:]:
