@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
@@ -46,31 +44,21 @@ def plot_inserts_dist(data, palette="tab10"):
 
 
 def plot_inserts(
-    all_inserts,
-    genome_choice,
-    seq_id,
+    comparison,
+    genome_choices,
+    seq_ids,
     clusters=None,
     insert_type="both",
     filter_threshold=None,
     buffer=4000,
     **kwargs,
 ):
-
-    # Get a table of genes and display it in the webapp
-    df_genes = all_inserts.get_genes_df(
-        selection={g: seq_id for g in genome_choice},
-        clusters=clusters,
-        insert_type=insert_type,
-        filter_threshold=filter_threshold,
-        buffer=buffer,
-    )
-    with st.expander("Table of genes"):
-        st.write(df_genes)
-
     # Set defaults for user-defined params
     feature_types = set()
     colorbar = False
     col1, col2 = "#ebf3ed", "#2e8b57"
+
+    clusters2 = clusters.other_repr
 
     # Get display options from the user
     with st.expander("Plotting options"):
@@ -84,15 +72,10 @@ def plot_inserts(
         col1 = st.color_picker("Genes/CDS color:", value=col1)
         col2 = st.color_picker("Inserts color:", value=col2)
 
-    clusters_alt = defaultdict(dict)
-    if clusters is not None:
-        for (genome, idx), seq_ids in clusters.items():
-            clusters_alt[genome][idx] = seq_ids
-
-    for genome in genome_choice:
+    for genome in genome_choices:
         st.subheader(genome, divider="gray")
-        inserts = all_inserts[genome].get(
-            seq_id,
+        inserts = comparison[genome].get_by_seq_id(
+            seq_ids,
             insert_type=insert_type,
             filter_threshold=filter_threshold,
         )
@@ -111,58 +94,71 @@ def plot_inserts(
             st.pyplot(fig)
             plt.close()
 
-        for clust_idx, seq_ids in clusters_alt[genome].items():
-            clust_ins = all_inserts[genome].get(seq_ids, insert_type, filter_threshold)
+        for clust_idx, insert_ids in clusters2[genome]:
+            clust_inserts = comparison[genome].get_by_insert_id(
+                insert_ids, insert_type, filter_threshold
+            )
             with st.expander(f"Cluster {clust_idx}:"):
-                st.write("\n".join([f"- {x:short}" for x in clust_ins]))
+                st.write("\n".join([f"- {x:short}" for x in clust_inserts]))
 
-            h_ratios = (2 + len(clust_ins), 5)
-            figsize = (10, 6 * (h_ratios[0] / 7))
+            # Values chosen based on how well plots scaled in webapp
+            h_ratios = (2 + len(clust_inserts), 7)
+            figsize = (10, 10 * (h_ratios[0] / 7))
+
             fig, axs = plt.subplots(2, 1, figsize=figsize, height_ratios=h_ratios)
             fig.suptitle(f"Cluster {clust_idx}")
-            axs = all_inserts[genome].plot_inserts(
-                seq_ids,
-                axs=axs,
+
+            axs = comparison[genome].plot_inserts(
+                insert_ids=insert_ids,
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
                 buffer=buffer,
+                axs=axs,
                 feature_types=feature_types,
                 colorbar=colorbar,
                 col1=col1,
                 col2=col2,
             )
+
             st.pyplot(fig, use_container_width=True)
             plt.close(fig)
 
 
 def plot_genomes(
-    all_inserts,
+    comparison,
     genome_choice,
-    seq_id,
+    seq_ids,
     clusters,
     insert_type,
     filter_threshold,
     **kwargs,
 ):
-    show_labels, show_titles = True, True
+    contig_labels, show_titles = True, True
     num_cols = None
 
     with st.expander("Plotting options"):
-        show_labels = st.toggle("Show contig/seq labels", value=True)
+        contig_labels = st.toggle("Show contig/seq labels", value=True)
+        cluster_labels = st.toggle("Show cluster labels", value=True)
         show_titles = st.toggle("Show genome labels", value=True)
         facet = st.toggle("Separate plot for each genome", value=False)
         if facet:
             num_cols = st.number_input("Number of columns", value=3, min_value=1)
 
-    if not len(seq_id):
-        seq_id = None
+    if not len(seq_ids):
+        seq_ids = None
 
-    fig = all_inserts.plot(
-        selection={g: seq_id for g in genome_choice},
-        clusters=clusters,
+    seq_labels = None
+    if cluster_labels:
+        seq_labels = clusters.insert_labels
+
+    # TODO: show genome labels does not work
+    fig = comparison.plot(
+        seq_ids={g: seq_ids for g in genome_choice},
+        insert_ids=clusters.insert_ids,
+        seq_labels=seq_labels,
+        contig_labels=contig_labels,
         insert_type=insert_type,
         filter_threshold=filter_threshold,
-        show_labels=show_labels,
         show_titles=show_titles,
         facet_wrap=num_cols,
     )

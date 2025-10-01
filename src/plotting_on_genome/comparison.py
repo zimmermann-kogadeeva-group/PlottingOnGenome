@@ -8,33 +8,55 @@ from dna_features_viewer import CircularGraphicRecord
 from matplotlib import color_sequences
 
 
-def clusters_to_seq_labels(clusters):
-    # Get sequences / insert labels based on clusters
-    seq_labels = defaultdict(dict)
-    if clusters is not None:
-        for (genome, clust_idx), seq_ids in clusters.items():
-            seq_labels[genome][seq_ids[-1]] = f"Cluster {clust_idx}"
-            for seq_id in seq_ids[:-1]:
-                seq_labels[genome][seq_id] = None
-    return seq_labels
+class Clusters(dict):
+    def __init__(self, clusters, genomes=None):
+        super(Clusters, self).__init__(clusters)
 
+        self.genomes = genomes or {g for g, clust_idx in self.keys()}
+        self.cluster_labels = list(self.keys())
 
-def merge_sets(set1, set2):
-    set1_cond = set1 is None or not len(set1)
-    set2_cond = set2 is None or not len(set2)
-    if set1_cond and not set2_cond:
-        return set2
-    elif set2_cond and not set1_cond:
-        return set1
-    elif set1_cond and set2_cond:
-        return None
-    else:
-        return list(set([*set1, *set2]))
+    def __contains__(self, item):
+        return item in self.cluster_labels
 
+    @property
+    def insert_ids(self):
+        insert_ids = {
+            genome: list(
+                chain.from_iterable(
+                    (
+                        insert_ids
+                        for (g, clust_idx), insert_ids in self.items()
+                        if g == genome
+                    )
+                )
+            )
+            for genome in self.genomes
+        }
+        return insert_ids
 
-def merge_selections(selection, seq_labels):
-    keys = set([*selection.keys(), *seq_labels.keys()])
-    return {k: merge_sets(selection[k], list(seq_labels[k].keys())) for k in keys}
+    @property
+    def insert_labels(self):
+        seq_labels = defaultdict(dict)
+        for g, clust_idx in self.cluster_labels:
+            seq_labels[g][
+                tuple(self.__getitem__((g, clust_idx))[-1])
+            ] = f"Cluster {clust_idx}"
+        return seq_labels
+
+    @property
+    def other_repr(self):
+        other = defaultdict(list)
+        for (g, clust_idx), insert_ids in self.items():
+            other[g].append((clust_idx, insert_ids))
+        return other
+
+    def subset(self, selection):
+        return Clusters(
+            {
+                (g, clust_idx): self.__getitem__((g, clust_idx))
+                for g, clust_idx in selection
+            }
+        )
 
 
 class Comparison(dict):
@@ -43,51 +65,55 @@ class Comparison(dict):
         super(Comparison, self).__init__(*args, **kwargs)
 
     def get_inserts(
-        self, selection=None, insert_type="both", filter_threshold=None, **kwargs
+        self,
+        genomes=None,
+        seq_ids=None,
+        insert_ids=None,
+        insert_type="both",
+        filter_threshold=None,
+        **kwargs,
     ):
-        if selection is None:
-            selection = list(self.keys())
-
-        if isinstance(selection, (list, tuple)):
-            selection = {x: None for x in selection}
+        if genomes is None:
+            genomes = self.keys()
 
         return [
-            self.__getitem__(sel).get(
-                insert_ids,
+            self.__getitem__(g).get(
+                insert_ids=insert_ids,
+                seq_ids=seq_ids,
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
             )
-            for sel, insert_ids in selection.items()
+            for g in genomes
         ]
 
     def get_inserts_df(
-        self, selection=None, insert_type="both", filter_threshold=None, **kwargs
+        self, genomes=None, insert_type="both", filter_threshold=None, **kwargs
     ):
-        if selection is None:
-            selection = self.keys()
+        if genomes is None:
+            genomes = self.keys()
 
         inserts_dfs = [
-            self.__getitem__(sel)
+            self.__getitem__(genome)
             .to_dataframe(insert_type=insert_type, filter_threshold=filter_threshold)
-            .assign(genome=sel)
-            for sel in selection
+            .assign(genome=genome)
+            for genome in genomes
         ]
 
         if len(inserts_dfs):
             return pd.concat(inserts_dfs, ignore_index=True)
 
     def get_insert_presence_df(
-        self, selection=None, insert_type="both", filter_threshold=None, **kwargs
+        self, genomes=None, insert_type="both", filter_threshold=None, **kwargs
     ):
-        if selection is None:
-            selection = self.keys()
+        if genomes is None:
+            genomes = self.keys()
 
         dfs = [
             pd.DataFrame(
-                self.__getitem__(sel).get_seq_ids(insert_type, filter_threshold),
+                self.__getitem__(g).get_seq_ids(insert_type, filter_threshold),
                 columns=["insert_ids"],
-            ).assign(genome=sel)
-            for sel in selection
+            ).assign(genome=g)
+            for g in genomes
         ]
 
         df_insert_presence = (
@@ -100,48 +126,65 @@ class Comparison(dict):
         return df_insert_presence
 
     def get_clusters(
-        self, selection=None, insert_type="both", filter_threshold=None, **kwargs
+        self,
+        genomes=None,
+        insert_type="both",
+        filter_threshold=None,
+        plain_dict=True,
+        **kwargs,
     ):
-        if selection is None:
-            selection = self.keys()
+        if genomes is None:
+            genomes = self.keys()
 
-        return {
-            (sel, idx): cluster
-            for sel in selection
-            for idx, cluster in enumerate(
-                self.__getitem__(sel).get_clusters(insert_type, filter_threshold)
+        if plain_dict:
+            return {
+                g: self.__getitem__(g).get_clusters(insert_type, filter_threshold)
+                for g in genomes
+            }
+        else:
+            return Clusters(
+                {
+                    (g, clust_idx): cluster
+                    for g in genomes
+                    for clust_idx, cluster in enumerate(
+                        self.__getitem__(g).get_clusters(insert_type, filter_threshold)
+                    )
+                },
+                genomes=genomes,
             )
-        }
 
     def get_genes_df(
         self,
-        selection=None,
-        clusters=None,
+        seq_ids=None,
+        insert_ids=None,
         insert_type="both",
         filter_threshold=None,
         buffer=4000,
         **kwargs,
     ):
+        if seq_ids is None:
+            seq_ids = {x: None for x in self.keys()}
+        elif isinstance(seq_ids, (list, tuple)):
+            seq_ids = {x: seq_ids for x in self.keys()}
 
-        if selection is None:
-            selection = list(self.keys())
+        if insert_ids is None:
+            insert_ids = {x: None for x in self.keys()}
+        elif isinstance(insert_ids, (list, tuple)):
+            insert_ids = {x: insert_ids for x in self.keys()}
 
-        if isinstance(selection, (list, tuple)):
-            selection = {x: None for x in selection}
-
-        seq_labels = clusters_to_seq_labels(clusters)
-        selection = merge_selections(selection, seq_labels)
+        genomes = set(seq_ids.keys()) | set(insert_ids.keys())
 
         genes_dfs = [
-            self.__getitem__(key)
+            self.__getitem__(g)
             .genes_to_dataframe(
-                seq_id,
+                seq_ids=seq_ids.get(g),
+                insert_ids=insert_ids.get(g),
                 insert_type=insert_type,
                 filter_threshold=filter_threshold,
                 buffer=buffer,
             )
-            .assign(genome=key)
-            for key, seq_id in selection.items()
+            .assign(genome=g)
+            for g in genomes
         ]
 
         if len(genes_dfs):
@@ -150,38 +193,93 @@ class Comparison(dict):
                 subset=drop_by
             )
 
-    def plot(
+    def get_graphic_features(
         self,
-        selection=None,
-        clusters=None,
+        seq_ids=None,
+        insert_ids=None,
+        genomes_order=None,
+        seq_labels=None,
+        contig_labels=True,
         insert_type="both",
         filter_threshold=None,
-        show_labels=True,
+        palette="tab10",
+    ):
+        if seq_ids is None:
+            seq_ids = {x: None for x in self.keys()}
+        elif isinstance(seq_ids, (list, tuple)):
+            seq_ids = {x: seq_ids for x in self.keys()}
+
+        if insert_ids is None:
+            insert_ids = {x: None for x in self.keys()}
+        elif isinstance(insert_ids, (list, tuple)):
+            insert_ids = {x: insert_ids for x in self.keys()}
+
+        if genomes_order is None:
+            genomes_order = set(seq_ids.keys()) | set(insert_ids.keys())
+
+        if seq_labels is None:
+            seq_labels = {x: None for x in self.keys()}
+
+        palette = cycle(color_sequences[palette])
+
+        res = {
+            g: self.__getitem__(g).get_graphic_features(
+                seq_ids=seq_ids.get(g),
+                insert_ids=insert_ids.get(g),
+                insert_type=insert_type,
+                filter_threshold=filter_threshold,
+                contig_labels=contig_labels,
+                seq_labels=seq_labels.get(g),
+                col1=col,
+                col2=col,
+                linecolor=col,
+            )
+            for g, col in zip(genomes_order, palette)
+        }
+
+        return res
+
+    def plot(
+        self,
+        seq_ids=None,
+        insert_ids=None,
+        genomes_order=None,
+        seq_labels=None,
+        contig_labels=True,
+        insert_type="both",
+        filter_threshold=None,
         show_titles=False,
         palette="tab10",
         facet_wrap=None,
-        genomes_order=None,
         fig=None,
         **kwargs,
     ):
-        if selection is None:
-            selection = list(self.keys())
+        # Get the graphic feature objects
+        res = self.get_graphic_features(
+            seq_ids,
+            insert_ids,
+            genomes_order,
+            seq_labels,
+            contig_labels,
+            insert_type,
+            filter_threshold,
+            palette,
+        )
 
-        if isinstance(selection, (list, tuple)):
-            selection = {x: None for x in selection}
-
-        if genomes_order is None:
-            genomes_order = list(selection.keys())
-
+        # Set all the plotting options based on input
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
 
-        num_genomes = len(selection)
+        genome_labels = res.keys()
+        num_genomes = len(genome_labels)
+
+        # Set the number of axes in the figure based on facet_wrap option
         nrows, ncols = 1, 1
         if facet_wrap is not None:
             ncols = min(facet_wrap, num_genomes)
             nrows = num_genomes // ncols
 
+        # Create figure and axes if not provided
         if fig is None:
             fig, axs = plt.subplots(nrows=nrows, ncols=ncols, **kwargs)
         else:
@@ -191,45 +289,25 @@ class Comparison(dict):
         if isinstance(axs, plt.Axes):
             axs = np.array([axs])
 
-        palette = cycle(color_sequences[palette])
-        seq_labels = clusters_to_seq_labels(clusters)
-
-        # update selection based on clusters
-        selection = merge_selections(selection, seq_labels)
-
-        res = [
-            self.__getitem__(key).get_graphic_features(
-                selection[key],
-                insert_type=insert_type,
-                filter_threshold=filter_threshold,
-                show_labels=show_labels,
-                seq_labels=seq_labels[key],
-                col1=col,
-                col2=col,
-                linecolor=col,
-            )
-            for key, col in zip(genomes_order, palette)
-        ]
-
-        genomes_labels = genomes_order
+        # Make and label all the plots
         if facet_wrap is None:
-            features = list(chain.from_iterable([x[1] for x in res]))
-            rec = CircularGraphicRecord(max([x[0] for x in res]), features)
+            features = list(chain.from_iterable([x[1] for x in res.values()]))
+            rec = CircularGraphicRecord(max([x[0] for x in res.values()]), features)
             _ = rec.plot(axs[0], annotate_inline=False)
-            genomes_labels = [", ".join(genomes_order)]
+
+            if show_titles:
+                axs[0].set_title(", ".join(list(genome_labels)))
 
         else:
-            for (seq_len, features), ax in zip(res, axs.flatten()):
+            for (label, (seq_len, features)), ax in zip(res.items(), axs.flatten()):
                 rec = CircularGraphicRecord(seq_len, features)
                 _ = rec.plot(ax, annotate_inline=False)
+
+                if show_titles:
+                    ax.set_title(label)
 
             # Remove redundant axis
             for ax in axs[num_genomes:]:
                 ax.axis("off")
-
-        # Set titles
-        if show_titles:
-            for title, ax in zip(genomes_labels, axs):
-                ax.set_title(title)
 
         return fig

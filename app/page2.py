@@ -1,5 +1,3 @@
-from itertools import chain
-
 import pandas as pd
 import streamlit as st
 from plotting import plot_genomes, plot_inserts, plot_inserts_dist
@@ -56,32 +54,15 @@ def sidebar_opts():
     return params
 
 
-def download_tables(df_inserts, df_genes):
-
-    st.write(
-        df_inserts.groupby(["genome", "insert_paired"], as_index=False)
+def get_pairing_info(data):
+    return (
+        data.groupby(["genome", "insert_paired"], as_index=False)
         .agg(num_inserts=pd.NamedAgg("seq_id", "nunique"))
         .pivot(index="insert_paired", columns="genome", values="num_inserts")
         .reindex(index=[False, True])
         .rename(index={False: "Unpaired", True: "Paired"})
         .rename_axis(index="")
         .fillna(0)
-    )
-
-    st.download_button(
-        label="Download all mapped seqs as CSV",
-        data=df_inserts.pipe(convert_df, index=False),
-        file_name="inserts.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
-
-    st.download_button(
-        label="Download all genes as CSV",
-        data=df_genes.pipe(convert_df, index=False),
-        file_name="genes.csv",
-        mime="text/csv",
-        use_container_width=True,
     )
 
 
@@ -96,11 +77,11 @@ def select_genomes(genome_labels):
     return res_choice
 
 
-def select_seq_id(possible_seq_ids, clusters_dict, st_key):
+def select_seq_id(possible_seq_ids, possible_clusters, st_key):
 
     sel = st.multiselect(
         "Select sequence id / cluster:",
-        possible_seq_ids + list(clusters_dict),
+        possible_seq_ids + possible_clusters.cluster_labels,
         None,
         format_func=lambda x: (
             f"{x[0]} - cluster {x[1]}" if isinstance(x, (list, tuple)) else x
@@ -109,24 +90,27 @@ def select_seq_id(possible_seq_ids, clusters_dict, st_key):
     )
 
     sel = set(sel)
-    clusters = {x: clusters_dict[x] for x in sel if x in clusters_dict}
-    seq_id = list(sel - set(clusters.keys()))
+    clusters_sel = [x for x in sel if x in possible_clusters]
+    seq_id_sel = list(sel - set(clusters_sel))
 
-    return seq_id, clusters
+    return seq_id_sel, possible_clusters.subset(clusters_sel)
 
 
-def get_inserts_cond(seq_ids, clusters):
-    cluster_ins_ids = list(chain.from_iterable(clusters.values()))
-    return " or ".join(
-        [
-            (
-                f"(seq_id == '{seq_id[0]}' and  insert_idx == {seq_id[1]})"
-                if len(seq_id) == 2
-                else f"seq_id == '{seq_id}'"
-            )
-            for seq_id in set(seq_ids + cluster_ins_ids)
-        ]
-    )
+def get_table_query(seq_ids, clusters):
+    query = f"seq_id in {list(seq_ids)}"
+
+    if clusters:
+        clusters_query = " or ".join(
+            [
+                f"(genome == '{g}' and seq_id == '{seq_id}' "
+                f"and insert_idx == {insert_idx})"
+                for (g, clust_idx), insert_ids in clusters.items()
+                for seq_id, insert_idx in insert_ids
+            ]
+        )
+        query = query + " or " + clusters_query
+
+    return query
 
 
 def show_results():
@@ -143,41 +127,62 @@ def show_results():
             genome_view, insert_view = st.columns(2)
 
         res_choice = select_genomes(all_results.keys())
+        res_choice_all_seqs = {x: None for x in res_choice}
 
         if len(res_choice):
+
             df_insert_presence = all_results.get_insert_presence_df(
-                res_choice, **params
+                res_choice_all_seqs, **params
             )
-            df_inserts = all_results.get_inserts_df(res_choice, **params)
-            df_genes = all_results.get_genes_df(res_choice, **params).map(
+            df_inserts = all_results.get_inserts_df(res_choice_all_seqs, **params)
+            df_genes = all_results.get_genes_df(res_choice_all_seqs, **params).map(
                 lambda x: ",".join(x) if isinstance(x, list) else x
             )
 
             # Possible seq_ids and clusters
             pos_seq_ids = df_insert_presence.index.tolist()
-            pos_clusters = all_results.get_clusters(res_choice, **params)
+            pos_clusters = all_results.get_clusters(
+                res_choice, plain_dict=False, **params
+            )
 
             seq_id = []
             with genome_view:
                 st.header("Genome view")
 
-                # download all genes and inserts
-                download_tables(df_inserts, df_genes)
+                # ==== Mapping information section ====
+                st.subheader("Mapping information", divider="green")
 
-                with st.expander("Mapped seqs presence/absence table"):
+                with st.expander("Table of all mapped seqs"):
+                    st.write(df_inserts)
+                    # download all inserts
+                    st.download_button(
+                        label="Download",
+                        data=df_inserts.pipe(convert_df, index=False),
+                        file_name="inserts.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+
+                with st.expander("Presence/absence table"):
                     st.write(df_insert_presence)
 
+                with st.expander("Sequence pairing info"):
+                    st.write(df_inserts.pipe(get_pairing_info))
+
+                # ==== Quality plots section ====
+                st.subheader("Quality plots", divider="green")
+
+                with st.expander("Distribution of mapped seqs"):
+                    plot_inserts_dist(df_inserts)
+
+                # ====  Plot sequences on genomes section ====
+                st.subheader("Plot sequences on genomes", divider="green")
                 # Select inserts
                 seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters, "seq1")
 
                 if seq_id or clust_sel:
-                    df_inserts = df_inserts.query(get_inserts_cond(seq_id, clust_sel))
-
-                with st.expander("Table of mapped seqs"):
-                    st.write(df_inserts)
-
-                with st.expander("Distribution of mapped seqs"):
-                    plot_inserts_dist(df_inserts)
+                    with st.expander("Table of mapped sequences"):
+                        st.write(df_inserts.query(get_table_query(seq_id, clust_sel)))
 
                 plot_genomes(
                     all_results,
@@ -190,18 +195,29 @@ def show_results():
             with insert_view:
                 st.header("Sequence view")
 
-                genome_choice = st.multiselect("Genome:", res_choice, None)
-                if not len(genome_choice):
-                    genome_choice = res_choice
+                # ==== Mapping information section ====
+                st.subheader("Mapping information", divider="green")
 
-                if not tabbed:
-                    plot_inserts(
-                        all_results, genome_choice, seq_id, clust_sel, **params
+                with st.expander("Table of genes in all sequences"):
+                    st.write(df_genes)
+
+                    st.download_button(
+                        label="Download",
+                        data=df_genes.pipe(convert_df, index=False),
+                        file_name="genes.csv",
+                        mime="text/csv",
+                        use_container_width=True,
                     )
-                else:
-                    seq_id2, clust_sel2 = select_seq_id(
+
+                # ==== Plotting section ====
+                st.subheader("Plot sequence or cluster of sequences", divider="green")
+
+                if tabbed:
+                    seq_ids, clust_sel = select_seq_id(
                         pos_seq_ids, pos_clusters, "seq2"
                     )
-                    plot_inserts(
-                        all_results, genome_choice, seq_id2, clust_sel2, **params
-                    )
+
+                with st.expander("Table of genes in selected sequences"):
+                    st.write(df_genes.query(get_table_query(seq_id, clust_sel)))
+
+                plot_inserts(all_results, res_choice, seq_id, clust_sel, **params)
