@@ -169,14 +169,11 @@ class Comparison(dict):
         if insert_ids is None:
             insert_ids = {g: None for g in genomes}
 
-        if seq_ids is not None:
+        if seq_ids is not None or insert_ids is not None:
             return {
-                g: {
-                    (x.seq_id, x.idx): x.seq_id
-                    for x in self.__getitem__(g).get(
-                        seq_ids=seq_ids, insert_ids=insert_ids.get(g)
-                    )
-                }
+                g: self.__getitem__(g).get_labels(
+                    seq_ids, insert_ids.get(g), genomes, insert_type, filter_threshold
+                )
                 for g in genomes
             }
 

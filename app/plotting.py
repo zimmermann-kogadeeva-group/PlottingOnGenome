@@ -177,14 +177,16 @@ def plot_genomes(
     clusters,
     insert_type,
     filter_threshold,
+    possible_seq_ids,
     **kwargs,
 ):
-    contig_labels, show_titles = True, True
+    show_contig_labels, show_titles = True, True
     num_cols = None
 
     # Get plotting options
     with st.expander("Plotting options"):
-        contig_labels = st.toggle("Show contig/seq labels", value=True)
+        show_contig_labels = st.toggle("Show contig labels", value=True)
+        show_seq_labels = st.toggle("Show seq labels", value=True)
         cluster_labels = st.toggle("Show cluster labels", value=True)
         show_titles = st.toggle("Show genome labels", value=True)
         facet = st.toggle("Separate plot for each genome", value=False)
@@ -192,13 +194,24 @@ def plot_genomes(
             num_cols = st.number_input("Number of columns", value=3, min_value=1)
         palette = st.selectbox("Palette", options=list(color_sequences.keys()))
 
+        addit_seq_to_label = st.multiselect(
+            "Sequences to label:",
+            possible_seq_ids,
+            None,
+        )
+
+    seqs_to_label = set()
     if not len(seq_ids):
         seq_ids = None
+    else:
+        seqs_to_label.update(seq_ids)
+
+    seqs_to_label.update(addit_seq_to_label)
 
     # Set seq_labels based on whether some seqs were selected
     seq_labels = defaultdict(dict)
-    if contig_labels and (seq_ids is not None or clusters is not None):
-        seq_labels = comparison.get_labels(seq_ids, clusters.insert_ids)
+    if show_seq_labels and (seq_ids is not None or clusters is not None):
+        seq_labels = comparison.get_labels(seqs_to_label, clusters.insert_ids)
 
     # If cluster labels are preferred, overwrite seq_labels for the sequences
     # in a cluster with the label of a cluster
@@ -210,7 +223,7 @@ def plot_genomes(
         seq_ids={g: seq_ids for g in genome_choice},
         insert_ids=clusters.insert_ids,
         seq_labels=seq_labels,
-        show_contig_labels=contig_labels,
+        show_contig_labels=show_contig_labels,
         insert_type=insert_type,
         filter_threshold=filter_threshold,
         show_titles=show_titles,

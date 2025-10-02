@@ -355,6 +355,20 @@ class Mapping(object):
             )
         ]
 
+    def get_labels(
+        self,
+        seq_ids,
+        insert_ids=None,
+        genomes=None,
+        insert_type="both",
+        filter_threshold=None,
+    ):
+        if seq_ids is not None or insert_ids is not None:
+            return {
+                (x.seq_id, x.idx): x.seq_id
+                for x in self.get(seq_ids=seq_ids, insert_ids=insert_ids)
+            }
+
     def to_dataframe(self, insert_type="both", filter_threshold=None):
         return pd.DataFrame(
             [

@@ -192,6 +192,7 @@ def show_results():
                     seq_id,
                     clust_sel,
                     **params,
+                    possible_seq_ids=pos_seq_ids,
                 )
 
             with insert_view:
