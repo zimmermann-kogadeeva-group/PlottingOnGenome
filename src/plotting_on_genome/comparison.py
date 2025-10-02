@@ -123,6 +123,7 @@ class Comparison(dict):
             .groupby(["insert_ids", "genome"], as_index=False)
             .agg(num_inserts=pd.NamedAgg("insert_ids", "count"))
             .pivot(index="insert_ids", columns="genome", values="num_inserts")
+            .reindex(columns=genomes)
         )
 
         return df_insert_presence
