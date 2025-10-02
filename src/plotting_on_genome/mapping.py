@@ -168,6 +168,7 @@ class Mapping(object):
         blast_clean=True,
         max_insert_len=10000,
         avg_insert_len=4000,
+        blast_options=None,
         **kwargs,
     ):
         # Populate obj attributes
@@ -218,10 +219,12 @@ class Mapping(object):
             )
 
         # Run BLAST and use xml format to save blast output
+        # TODO: need to sanitize blast_options
         self.blast_results = run_blast(
             self.seq_file,
             self.genome_fasta,
             self.work_dir / "blast_output.xml",
+            blast_options,
         )
 
         if blast_clean:

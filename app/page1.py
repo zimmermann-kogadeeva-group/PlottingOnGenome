@@ -74,6 +74,15 @@ def get_main_inputs(workdir=False):
             ),
         )
 
+    blast_options = None
+    with st.expander("Additional BLAST settings"):
+        blast_evalue = st.number_input("E-value", value=10, format="%0.3f")
+        blast_wordsize = st.number_input("Word size", value=None, min_value=4)
+
+        blast_options = f"-evalue {blast_evalue}"
+        if blast_wordsize is not None:
+            blast_options += f" -word_size {blast_wordsize}"
+
     workdir_path = None
     if workdir:
         workdir_path = st.text_input("workdir", "Output")
@@ -85,6 +94,7 @@ def get_main_inputs(workdir=False):
         "rev_suf": rev_suf,
         "workdir": workdir_path,
         "avg_insert_len": default_ins_len,
+        "blast_options": blast_options,
     }
 
     all_inputs = []
@@ -112,6 +122,7 @@ def run_pipeline(
     rev_suf,
     workdir=None,
     avg_insert_len=4000,
+    blast_options=None,
 ):
     with TempDirManager(workdir) as work_dir:
         dirpath = Path(work_dir)
@@ -139,6 +150,7 @@ def run_pipeline(
                 fwd_suffix=fwd_suf,
                 rev_suffix=rev_suf,
                 avg_insert_len=avg_insert_len,
+                blast_options=blast_options,
             )
         except RuntimeError as e:
             st.error(e)

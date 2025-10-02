@@ -94,7 +94,7 @@ def _correct_hit_id(x):
     return x
 
 
-def run_blast(seq_file, db_file, blast_output):
+def run_blast(seq_file, db_file, blast_output, blast_options=None):
     # TODO: check how to catch errors from blast
     # make blast database
     run1 = subprocess.run(
@@ -107,9 +107,14 @@ def run_blast(seq_file, db_file, blast_output):
     if run1.returncode != 0:
         raise OSError(f"Failed to run makeblastdb: {run1.stderr.decode()}")
 
+    if blast_options is None:
+        blast_options = ""
+
     # align input sequences with query using blastn with default options
     run2 = subprocess.run(
-        f"blastn -query {seq_file} -db {db_file} -out {blast_output} -outfmt 5",
+        "blastn "
+        f"-query {seq_file} -db {db_file} "
+        f"-out {blast_output} -outfmt 5 {blast_options}",
         shell=True,
         check=True,
         stdout=subprocess.PIPE,
@@ -124,3 +129,7 @@ def run_blast(seq_file, db_file, blast_output):
         x.id: x.hit_map(_correct_hit_id)
         for x in SearchIO.parse(blast_output, "blast-xml")
     }
+
+
+def run_minimap2(seq_file, db_file, output_file):
+    pass
