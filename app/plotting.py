@@ -1,4 +1,6 @@
+import zipfile
 from collections import defaultdict
+from io import BytesIO
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -83,6 +85,9 @@ def plot_inserts(
         col1 = st.color_picker("Genes/CDS color:", value=col1)
         col2 = st.color_picker("Inserts color:", value=col2)
 
+    # To store the buffers that will hold the images
+    svg_buffers = []
+
     for genome in genome_choices:
         st.subheader(genome, divider="gray")
         inserts = comparison[genome].get_by_seq_id(
@@ -103,6 +108,14 @@ def plot_inserts(
                 col2=col2,
                 show_mappings=show_mappings,
             )
+
+            # Save the svg figure in a buffer
+            img_buffer = BytesIO()
+            fig.savefig(img_buffer, format="svg")
+            img_buffer.seek(0)
+            svg_buffers.append(img_buffer)
+
+            # Display the figure in the webapp
             st.pyplot(fig)
             plt.close()
 
@@ -132,8 +145,29 @@ def plot_inserts(
                 col2=col2,
             )
 
+            # Save the svg figure in a buffer
+            img_buffer = BytesIO()
+            fig.savefig(img_buffer, format="svg")
+            img_buffer.seek(0)
+            svg_buffers.append(img_buffer)
+
+            # Display the figure in the web app
             st.pyplot(fig, use_container_width=True)
             plt.close(fig)
+
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for i, img_buffer in enumerate(svg_buffers):
+            zipf.writestr(f"figure_{i+1}.svg", img_buffer.getvalue())
+
+    st.download_button(
+        label="Download all figures above",
+        key="seq_view_figures_download",
+        data=zip_buffer,
+        file_name="seq_view.zip",
+        mime="image/svg",
+        use_container_width=True,
+    )
 
 
 def plot_genomes(
@@ -183,5 +217,22 @@ def plot_genomes(
         facet_wrap=num_cols,
         palette=palette,
     )
+
+    # Save the svg figure in a buffer
+    img = BytesIO()
+    fig.savefig(img, format="svg")
+    img.seek(0)
+
+    # Show the figure in the web app
     st.pyplot(fig, use_container_width=True)
     plt.close()
+
+    # Show the download button for the svg figure
+    st.download_button(
+        key="genome_view_figures_download",
+        label="Download figure",
+        data=img,
+        file_name="genome_view.svg",
+        mime="image/svg",
+        use_container_width=True,
+    )
