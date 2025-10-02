@@ -76,7 +76,7 @@ def get_main_inputs(workdir=False):
 
     blast_options = None
     with st.expander("Additional BLAST settings"):
-        blast_evalue = st.number_input("E-value", value=10, format="%0.3f")
+        blast_evalue = st.number_input("E-value", value=10.0, format="%0.3f")
         blast_wordsize = st.number_input("Word size", value=None, min_value=4)
 
         blast_options = f"-evalue {blast_evalue}"
