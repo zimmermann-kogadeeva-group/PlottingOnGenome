@@ -197,7 +197,7 @@ def plot_genomes(
         addit_seq_to_label = st.multiselect(
             "Sequences to label:",
             possible_seq_ids,
-            None,
+            default=None,
         )
 
     seqs_to_label = set()

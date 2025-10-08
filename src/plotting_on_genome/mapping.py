@@ -368,7 +368,7 @@ class Mapping(object):
     ):
         if seq_ids is not None or insert_ids is not None:
             return {
-                (x.seq_id, x.idx): x.seq_id
+                (x.seq_id, x.idx): f"{x.seq_id} - insert {x.idx}"
                 for x in self.get(seq_ids=seq_ids, insert_ids=insert_ids)
             }
 

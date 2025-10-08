@@ -131,7 +131,7 @@ def show_results():
 
         if len(res_choice):
 
-            df_insert_presence = all_results.get_insert_presence_df(
+            df_insert_pa = all_results.get_insert_presence_df(
                 res_choice_all_seqs, **params
             )
             df_inserts = all_results.get_inserts_df(res_choice_all_seqs, **params)
@@ -140,7 +140,7 @@ def show_results():
             )
 
             # Possible seq_ids and clusters
-            pos_seq_ids = df_insert_presence.index.tolist()
+            pos_seq_ids = df_insert_pa.index.tolist()
             pos_clusters = all_results.get_clusters(
                 res_choice, plain_dict=False, **params
             )
@@ -166,7 +166,14 @@ def show_results():
                     )
 
                 with st.expander("Presence/absence table"):
-                    st.write(df_insert_presence)
+                    show_mapped = st.checkbox("Show mapped", value=True)
+                    show_unmapped = st.checkbox("Show unmapped", value=True)
+                    if show_mapped and not show_unmapped:
+                        st.write(df_insert_pa.dropna(how="all"))
+                    elif not show_mapped and show_unmapped:
+                        st.write(df_insert_pa[df_insert_pa.isna().all(axis=1)])
+                    else:
+                        st.write(df_insert_pa)
 
                 with st.expander("Sequence pairing info"):
                     st.write(df_inserts.pipe(get_pairing_info))

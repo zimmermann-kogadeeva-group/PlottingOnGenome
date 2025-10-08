@@ -118,12 +118,16 @@ class Comparison(dict):
             for g in genomes
         ]
 
+        all_seq_ids = sorted(
+            set(chain.from_iterable(self.__getitem__(g).seq_ids for g in genomes))
+        )
+
         df_insert_presence = (
             pd.concat(dfs, ignore_index=True)
             .groupby(["insert_ids", "genome"], as_index=False)
             .agg(num_inserts=pd.NamedAgg("insert_ids", "count"))
             .pivot(index="insert_ids", columns="genome", values="num_inserts")
-            .reindex(columns=genomes)
+            .reindex(columns=genomes, index=all_seq_ids)
         )
 
         return df_insert_presence
