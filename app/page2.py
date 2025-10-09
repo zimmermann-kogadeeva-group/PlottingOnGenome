@@ -140,7 +140,7 @@ def show_results():
             )
 
             # Possible seq_ids and clusters
-            pos_seq_ids = df_insert_pa.index.tolist()
+            pos_seq_ids = df_insert_pa.dropna(how="all").index.tolist()
             pos_clusters = all_results.get_clusters(
                 res_choice, plain_dict=False, **params
             )

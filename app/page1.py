@@ -2,8 +2,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import streamlit as st
+from Bio import SeqIO
 
-import plotting_on_genome as pog
+from plotting_on_genome import Mapping
+from plotting_on_genome.helper import process_ab1
 
 
 class TempDirManager:
@@ -53,10 +55,18 @@ def get_main_inputs(workdir=False):
 
     seq_fh = st.file_uploader(
         "Sequence file:",
-        type=["fasta", "fas", "fna"],
+        type=["fasta", "fas", "fna", "ab1"],
         key="seqs",
         accept_multiple_files=True,
     )
+
+    # Add QC parameters in case ab1 files are submitted
+    qc_value, qc_ws = None, None
+    if any([seq.name.endswith(".ab1") for seq in seq_fh]):
+        qc_value = st.number_input(
+            "Quality filtering - threshold", value=30, min_value=0, max_value=40
+        )
+        qc_ws = st.number_input("Quality filtering - window size", value=5, min_value=1)
 
     fwd_suf, rev_suf = None, None
     default_ins_len = 4000
@@ -95,6 +105,8 @@ def get_main_inputs(workdir=False):
         "workdir": workdir_path,
         "avg_insert_len": default_ins_len,
         "blast_options": blast_options,
+        "qc_value": qc_value,
+        "qc_ws": qc_ws,
     }
 
     all_inputs = []
@@ -123,6 +135,8 @@ def run_pipeline(
     workdir=None,
     avg_insert_len=4000,
     blast_options=None,
+    qc_value=None,
+    qc_ws=None,
 ):
     with TempDirManager(workdir) as work_dir:
         dirpath = Path(work_dir)
@@ -134,14 +148,23 @@ def run_pipeline(
             genome_path = None
 
         seq_path = str(dirpath / "seqs.fasta")
-        with open(seq_path, "wb") as fh:
+        with open(seq_path, "w") as fh:
             for seq in seq_fh:
-                # Make sure that there is new line between individual seqs
-                fh.write(seq.getvalue())
-                fh.write(b"\n")
+                if seq.name.endswith(".ab1"):
+                    processed_seq = process_ab1(
+                        [rec for rec in SeqIO.parse(seq, "abi")],
+                        window_size=qc_ws,
+                        quality_threshold=qc_value,
+                        fix_seq_id=True,
+                    )
+                    SeqIO.write(processed_seq, fh, "fasta")
+                else:
+                    # Make sure that there is new line between individual seqs
+                    fh.write(seq.getvalue().decode("utf-8"))
+                    fh.write("\n")
 
         try:
-            res = pog.Mapping(
+            res = Mapping(
                 seq_file=seq_path,
                 work_dir=dirpath,
                 genome_file=genome_path,

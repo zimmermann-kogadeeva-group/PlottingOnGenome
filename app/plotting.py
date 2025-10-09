@@ -194,6 +194,8 @@ def plot_genomes(
             num_cols = st.number_input("Number of columns", value=3, min_value=1)
         palette = st.selectbox("Palette", options=list(color_sequences.keys()))
 
+        # TODO: may need to change the additional labelling to be able to select
+        # individual inserts
         addit_seq_to_label = st.multiselect(
             "Sequences to label:",
             possible_seq_ids,

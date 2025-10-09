@@ -66,6 +66,8 @@ class Comparison(dict):
     def __init__(self, *args, **kwargs):
         super(Comparison, self).__init__(*args, **kwargs)
 
+        self.insert_ids = {g: mapping.insert_ids for g, mapping in self.items()}
+
     def get_inserts(
         self,
         genomes=None,
