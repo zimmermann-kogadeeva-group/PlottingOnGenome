@@ -90,10 +90,18 @@ def process_ab1(seq_records, window_size=5, quality_threshold=30, fix_seq_id=Tru
 
 
 def read_ab1_files(
-    filenames, window_size=None, quality_threshold=None, fix_seq_id=False
+    filenames, window_size=None, quality_threshold=None, fix_seq_id=False, output=None
 ):
+    # Read in the data
     seqs = list(chain.from_iterable(read_ab1(f) for f in filenames))
-    return process_ab1(seqs, window_size, quality_threshold, fix_seq_id)
+
+    # Filter low quality reads and fix id attribute
+    seqs = process_ab1(seqs, window_size, quality_threshold, fix_seq_id)
+
+    # Save to fasta file
+    if output is not None:
+        SeqIO.write(seqs, output, "fasta")
+    return seqs
 
 
 def get_gene_coverage(gene_start, gene_end, region_start, region_end):
