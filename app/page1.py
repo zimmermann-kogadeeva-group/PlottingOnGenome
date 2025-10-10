@@ -64,9 +64,21 @@ def get_main_inputs(workdir=False):
     qc_value, qc_ws = None, None
     if any([seq.name.endswith(".ab1") for seq in seq_fh]):
         qc_value = st.number_input(
-            "Quality filtering - threshold", value=30, min_value=0, max_value=40
+            "Quality filtering - threshold",
+            value=30,
+            min_value=0,
+            max_value=40,
+            help=(
+                "Threshold value for Phred quality score filtering "
+                "below which to remove reads"
+            ),
         )
-        qc_ws = st.number_input("Quality filtering - window size", value=5, min_value=1)
+        qc_ws = st.number_input(
+            "Quality filtering - window size",
+            value=5,
+            min_value=1,
+            help="Size of the moving window in Phred quality score filtering",
+        )
 
     fwd_suf, rev_suf = None, None
     default_ins_len = 4000
@@ -141,7 +153,7 @@ def run_pipeline(
     with TempDirManager(workdir) as work_dir:
         dirpath = Path(work_dir)
         if genome_fh is not None:
-            genome_path = str(dirpath / genome_fh.name)
+            genome_path = str(dirpath / genome_fh.name.replace(" ", "_"))
             with open(genome_path, "wb") as fh:
                 fh.write(genome_fh.getvalue())
         else:
