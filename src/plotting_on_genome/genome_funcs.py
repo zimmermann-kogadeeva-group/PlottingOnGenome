@@ -98,7 +98,7 @@ def run_blast(seq_file, db_file, blast_output, blast_options=None):
     # TODO: check how to catch errors from blast
     # make blast database
     run1 = subprocess.run(
-        f"makeblastdb -in {db_file} -parse_seqids -dbtype nucl",
+        f"makeblastdb -in '{db_file}' -parse_seqids -dbtype nucl",
         shell=True,
         check=True,
         stdout=subprocess.PIPE,
@@ -113,8 +113,8 @@ def run_blast(seq_file, db_file, blast_output, blast_options=None):
     # align input sequences with query using blastn with default options
     run2 = subprocess.run(
         "blastn "
-        f"-query {seq_file} -db {db_file} "
-        f"-out {blast_output} -outfmt 5 {blast_options}",
+        f"-query '{seq_file}' -db '{db_file}' "
+        f"-out '{blast_output}' -outfmt 5 {blast_options}",
         shell=True,
         check=True,
         stdout=subprocess.PIPE,
