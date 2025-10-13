@@ -225,9 +225,7 @@ def show_results():
                 st.subheader("Plot sequence or cluster of sequences", divider="green")
 
                 if tabbed:
-                    seq_ids, clust_sel = select_seq_id(
-                        pos_seq_ids, pos_clusters, "seq2"
-                    )
+                    seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters, "seq2")
 
                 with st.expander("Table of genes in selected sequences"):
                     st.write(df_genes.query(get_table_query(seq_id, clust_sel)))
