@@ -48,7 +48,7 @@ def get_main_inputs(workdir=False):
     else:
         genome_fh = st.file_uploader(
             "Upload genome:",
-            type=("gbk", "gff"),
+            type=("gbk", "gb", "gff", "fasta", "fa"),
             key="genome",
             accept_multiple_files=True,
         )

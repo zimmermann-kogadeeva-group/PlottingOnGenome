@@ -2,6 +2,7 @@ import json
 import re
 from itertools import accumulate, product
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from warnings import warn
 
 import matplotlib.pyplot as plt
@@ -158,7 +159,7 @@ class Mapping(object):
     def __init__(
         self,
         seq_file,
-        work_dir,
+        work_dir=None,
         *,
         genome_file=None,
         search_term=None,
@@ -179,7 +180,12 @@ class Mapping(object):
         self.rev_suf = rev_suffix
 
         # Make sure that specified work
+        tmp_dir = None
+        if work_dir is None:
+            tmp_dir = TemporaryDirectory(prefix="pog_")
+            work_dir = tmp_dir.name
         self.work_dir = Path(work_dir)
+        print(f"Working directory: {self.work_dir}")
         self.work_dir.mkdir(exist_ok=True, parents=True)
 
         # Get seqs and remove primers if need be and redefine self.seq_file
@@ -257,6 +263,10 @@ class Mapping(object):
             for seq_id, inserts in self._all_inserts.items()
             for insert in inserts
         }
+
+        if tmp_dir:
+            print(f"Cleaning up temporary directory {self.work_dir}")
+            tmp_dir.cleanup()
 
     def __getitem__(self, key):
 

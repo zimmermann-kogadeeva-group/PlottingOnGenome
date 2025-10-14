@@ -67,13 +67,14 @@ def get_genome(genome_file, genome_fasta, search_term=None, retmax=None):
             genome = SeqIO.to_dict(GFF.parse(genome_file))
         elif genome_file.suffix == ".gbk":
             genome = SeqIO.to_dict(SeqIO.parse(genome_file, "genbank"))
+        elif genome_file.suffix in (".fa", ".fasta"):
+            genome = SeqIO.to_dict(SeqIO.parse(genome_file, "fasta"))
         else:
             raise RuntimeError("Wrong format expected either `.gbk` or `.gff` file.")
 
     defined_seqs = [x for x in genome.values() if x.seq.defined]
 
     if not len(defined_seqs):
-
         message = f"Genome file {genome_file} does not contain any sequences!"
         if search_term is not None:
             message = (
