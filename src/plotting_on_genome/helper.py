@@ -16,7 +16,7 @@ def shift_feature(feature, shift=0):
     return new_feature
 
 
-def filter_by_rolling_quality(seq_record, window_size=5, threshold=30):
+def quality_filter(seq_record, window_size=5, threshold=30, fix_id=True):
     """
     Filters a SeqRecord, keeping only regions where the rolling average
     Phred quality is above the threshold.
@@ -27,6 +27,14 @@ def filter_by_rolling_quality(seq_record, window_size=5, threshold=30):
     :param threshold: Minimum average quality to keep
     :return: Single SeqRecord with concatenated passing regions
     """
+
+    # If sequence is provided without phred score just return it
+    if "phred_quality" not in seq_record.letter_annotations:
+        return seq_record
+
+    if window_size is None or threshold is None:
+        return seq_record
+
     # Get the quality scores as a list of integers
     qualities = seq_record.letter_annotations["phred_quality"]
     sequence = str(seq_record.seq)
@@ -71,37 +79,22 @@ def filter_by_rolling_quality(seq_record, window_size=5, threshold=30):
     new_record.name = seq_record.name
     new_record.description = seq_record.description
 
+    if fix_id:
+        new_record.id = seq_record.name
+
     return new_record
 
 
-def read_ab1(filename):
-    with open(filename, "rb") as fh:
-        return [rec for rec in SeqIO.parse(fh, "abi")]
-
-
-def process_ab1(seq_records, window_size=5, quality_threshold=30, fix_seq_id=True):
+def quality_filtering(
+    seq_records, window_size=5, quality_threshold=30, fix_seq_id=True
+):
     new_seqs = seq_records[:]  # make a copy
     for i, seq in enumerate(new_seqs):
         if window_size is not None and quality_threshold is not None:
-            new_seqs[i] = filter_by_rolling_quality(seq, window_size, quality_threshold)
-        if fix_seq_id:
-            new_seqs[i].id = seq.name
+            new_seqs[i] = quality_filter(
+                seq, window_size, quality_threshold, fix_seq_id
+            )
     return new_seqs
-
-
-def read_ab1_files(
-    filenames, window_size=None, quality_threshold=None, fix_seq_id=False, output=None
-):
-    # Read in the data
-    seqs = list(chain.from_iterable(read_ab1(f) for f in filenames))
-
-    # Filter low quality reads and fix id attribute
-    seqs = process_ab1(seqs, window_size, quality_threshold, fix_seq_id)
-
-    # Save to fasta file
-    if output is not None:
-        SeqIO.write(seqs, output, "fasta")
-    return seqs
 
 
 def get_gene_coverage(gene_start, gene_end, region_start, region_end):

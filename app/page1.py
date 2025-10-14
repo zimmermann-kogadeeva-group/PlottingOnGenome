@@ -1,3 +1,4 @@
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -5,7 +6,15 @@ import streamlit as st
 from Bio import SeqIO
 
 from plotting_on_genome import Mapping
-from plotting_on_genome.helper import process_ab1
+from plotting_on_genome.helper import quality_filter
+
+INPUT_FORMATS = {
+    "fasta": "fasta",
+    "fas": "fasta",
+    "fna": "fasta",
+    "ab1": "abi",
+    "fastq": "fastq",
+}
 
 
 class TempDirManager:
@@ -55,7 +64,7 @@ def get_main_inputs(workdir=False):
 
     seq_fh = st.file_uploader(
         "Sequence file:",
-        type=["fasta", "fas", "fna", "ab1"],
+        type=["fasta", "fas", "fna", "ab1", "fastq"],
         key="seqs",
         accept_multiple_files=True,
     )
@@ -162,18 +171,19 @@ def run_pipeline(
         seq_path = str(dirpath / "seqs.fasta")
         with open(seq_path, "w") as fh:
             for seq in seq_fh:
-                if seq.name.endswith(".ab1"):
-                    processed_seq = process_ab1(
-                        [rec for rec in SeqIO.parse(seq, "abi")],
+                input_format = INPUT_FORMATS[seq.name.rsplit(".")[-1]]
+
+                if input_format != "ab1":
+                    seq = StringIO(seq.getvalue().decode("utf-8"))
+
+                for rec in SeqIO.parse(seq, input_format):
+                    processed_rec = quality_filter(
+                        rec,
                         window_size=qc_ws,
-                        quality_threshold=qc_value,
-                        fix_seq_id=True,
+                        threshold=qc_value,
+                        fix_id=True,
                     )
-                    SeqIO.write(processed_seq, fh, "fasta")
-                else:
-                    # Make sure that there is new line between individual seqs
-                    fh.write(seq.getvalue().decode("utf-8"))
-                    fh.write("\n")
+                    SeqIO.write(processed_rec, fh, "fasta")
 
         try:
             res = Mapping(

@@ -77,16 +77,15 @@ def select_genomes(genome_labels):
     return res_choice
 
 
-def select_seq_id(possible_seq_ids, possible_clusters, st_key):
+def select_seq_id(possible_seq_ids, possible_clusters):
 
-    sel = st.multiselect(
+    sel = st.sidebar.multiselect(
         "Select sequence id / cluster:",
         possible_seq_ids + possible_clusters.cluster_labels,
         None,
         format_func=lambda x: (
             f"{x[0]} - cluster {x[1]}" if isinstance(x, (list, tuple)) else x
         ),
-        key=st_key,
     )
 
     sel = set(sel)
@@ -144,6 +143,8 @@ def show_results():
             pos_clusters = all_results.get_clusters(
                 res_choice, plain_dict=False, **params
             )
+            # Select inserts
+            seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters)
 
             seq_id = []
             with genome_view:
@@ -186,8 +187,6 @@ def show_results():
 
                 # ====  Plot sequences on genomes section ====
                 st.subheader("Plot sequences on genomes", divider="green")
-                # Select inserts
-                seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters, "seq1")
 
                 if seq_id or clust_sel:
                     with st.expander("Table of mapped sequences"):
@@ -223,9 +222,6 @@ def show_results():
 
                 # ==== Plotting section ====
                 st.subheader("Plot sequence or cluster of sequences", divider="green")
-
-                if tabbed:
-                    seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters, "seq2")
 
                 with st.expander("Table of genes in selected sequences"):
                     st.write(df_genes.query(get_table_query(seq_id, clust_sel)))
