@@ -173,7 +173,7 @@ def run_pipeline(
             for seq in seq_fh:
                 input_format = INPUT_FORMATS[seq.name.rsplit(".")[-1]]
 
-                if input_format != "ab1":
+                if input_format != "abi":
                     seq = StringIO(seq.getvalue().decode("utf-8"))
 
                 for rec in SeqIO.parse(seq, input_format):
