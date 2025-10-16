@@ -1,8 +1,6 @@
 from copy import deepcopy
-from itertools import chain
 
 import numpy as np
-from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from dna_features_viewer import BiopythonTranslator, GraphicRecord
@@ -27,6 +25,8 @@ def quality_filter(seq_record, window_size=5, threshold=30, fix_id=True):
     :param threshold: Minimum average quality to keep
     :return: Single SeqRecord with concatenated passing regions
     """
+    if fix_id:
+        seq_record.id = seq_record.name
 
     # If sequence is provided without phred score just return it
     if "phred_quality" not in seq_record.letter_annotations:
@@ -78,9 +78,6 @@ def quality_filter(seq_record, window_size=5, threshold=30, fix_id=True):
     new_record.id = seq_record.id
     new_record.name = seq_record.name
     new_record.description = seq_record.description
-
-    if fix_id:
-        new_record.id = seq_record.name
 
     return new_record
 

@@ -74,7 +74,7 @@ def get_main_inputs(workdir=False):
     if any([seq.name.endswith((".ab1", ".fastq")) for seq in seq_fh]):
         qc_value = st.number_input(
             "Quality filtering - threshold",
-            value=30,
+            value=None,
             min_value=0,
             max_value=40,
             help=(
@@ -84,7 +84,7 @@ def get_main_inputs(workdir=False):
         )
         qc_ws = st.number_input(
             "Quality filtering - window size",
-            value=5,
+            value=None,
             min_value=1,
             help="Size of the moving window in Phred quality score filtering",
         )
