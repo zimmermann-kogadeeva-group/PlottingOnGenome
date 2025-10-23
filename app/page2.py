@@ -146,7 +146,6 @@ def show_results():
             # Select inserts
             seq_id, clust_sel = select_seq_id(pos_seq_ids, pos_clusters)
 
-            seq_id = []
             with genome_view:
                 st.header("Genome view")
 
