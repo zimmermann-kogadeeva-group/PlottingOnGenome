@@ -25,12 +25,12 @@ def submit(*args):
 
 
 def main():
-    parser = argparse.ArgumentParser("PlottingOnGenome")
+    parser = argparse.ArgumentParser("Maphelios")
     parser.add_argument("--workdir", action="store_true")
     args = parser.parse_args()
 
     col1, col2 = st.columns((6, 1), gap="large", vertical_alignment="bottom")
-    st.title("PlottingOnGenome")
+    st.title("Maphelios")
 
     if st.session_state.stage == 0:
         all_inputs = get_main_inputs(args.workdir)
