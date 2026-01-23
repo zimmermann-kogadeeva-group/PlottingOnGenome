@@ -5,6 +5,8 @@ import streamlit as st
 from page1 import get_main_inputs, run_pipeline
 from page2 import show_results
 
+from plotting_on_genome import __version__
+
 st.set_page_config(layout="wide")
 
 if "stage" not in st.session_state:
@@ -30,7 +32,8 @@ def main():
     args = parser.parse_args()
 
     col1, col2 = st.columns((6, 1), gap="large", vertical_alignment="bottom")
-    st.title("Maphelios")
+    st.title(f"Maphelios")
+    st.caption(f"*:grey[v{__version__}]*")
 
     if st.session_state.stage == 0:
         all_inputs = get_main_inputs(args.workdir)
