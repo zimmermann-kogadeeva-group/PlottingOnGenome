@@ -44,7 +44,8 @@ def sidebar_opts():
         min_value=0,
         max_value=10000,
         value=4000,
-        help="Number of bases either side of the insert",
+        step=10,
+        help="Number of bases either side of the mapped read(s)",
     )
 
     params = dict(
