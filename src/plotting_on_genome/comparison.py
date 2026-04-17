@@ -236,6 +236,7 @@ class Comparison(dict):
         insert_type="both",
         filter_threshold=None,
         palette="tab10",
+        **kwargs,
     ):
         if seq_ids is None:
             seq_ids = {x: None for x in self.keys()}
@@ -266,6 +267,7 @@ class Comparison(dict):
                 col1=col,
                 col2=col,
                 linecolor=col,
+                **kwargs,
             )
             for g, col in zip(genomes_order, palette)
         }
@@ -280,6 +282,7 @@ class Comparison(dict):
         seq_labels=None,
         insert_type="both",
         filter_threshold=None,
+        feature_kwargs=None,
         show_contig_labels=True,
         show_titles=False,
         palette="tab10",
@@ -287,6 +290,8 @@ class Comparison(dict):
         fig=None,
         **kwargs,
     ):
+        feature_kwargs = {} if feature_kwargs is None else feature_kwargs
+
         # Get the graphic feature objects
         res = self.get_graphic_features(
             seq_ids,
@@ -297,6 +302,7 @@ class Comparison(dict):
             insert_type,
             filter_threshold,
             palette,
+            **feature_kwargs,
         )
 
         # Set all the plotting options based on input

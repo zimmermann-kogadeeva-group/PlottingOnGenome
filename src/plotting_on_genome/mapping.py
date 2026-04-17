@@ -543,10 +543,13 @@ class Mapping(object):
         seq_labels=None,
         col1="#ebf3ed",
         col2="#2e8b57",
+        feature_kwargs=None,
         ax=None,
         backend="matplotlib",
         **kwargs,
     ):
+        feature_kwargs = {} if feature_kwargs is None else feature_kwargs
+
         if "figsize" not in kwargs:
             kwargs["figsize"] = (10, 8)
 
@@ -559,7 +562,7 @@ class Mapping(object):
             seq_labels,
             col1,
             col2,
-            **kwargs,
+            **feature_kwargs,
         )
 
         rec = CircularGraphicRecord(sequence_length=seq_len, features=features)

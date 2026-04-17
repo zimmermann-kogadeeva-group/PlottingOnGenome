@@ -190,6 +190,9 @@ def plot_genomes(
         cluster_labels = st.toggle("Show cluster labels", value=True)
         show_titles = st.toggle("Show genome labels", value=True)
         facet = st.toggle("Separate plot for each genome", value=False)
+        label_fontsize = st.number_input(
+            "Label fontsize", value=10, min_value=4, max_value=30
+        )
         if facet:
             num_cols = st.number_input("Number of columns", value=3, min_value=1)
         palette = st.selectbox("Palette", options=list(color_sequences.keys()))
@@ -231,6 +234,7 @@ def plot_genomes(
         show_titles=show_titles,
         facet_wrap=num_cols,
         palette=palette,
+        feature_kwargs={"fontdict": {"fontsize": label_fontsize}},
     )
 
     # Save the svg figure in a buffer
