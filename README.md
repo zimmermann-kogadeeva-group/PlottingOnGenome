@@ -1,5 +1,5 @@
 
-# PlottingOnGenome
+# Maphelios
 
 Package to find and plot inserts alongside the genome or contigs.
 
@@ -10,7 +10,7 @@ BLAST
 ## Installation
 
 ```
-pip install git+https://git.embl.org/grp-zimmermann-kogadeeva/PlottingOnGenome.git
+pip install git+https://git.embl.org/grp-zimmermann-kogadeeva/Maphelios.git
 ```
 
 ## Running
@@ -19,13 +19,13 @@ pip install git+https://git.embl.org/grp-zimmermann-kogadeeva/PlottingOnGenome.g
 
 To run the streamlit app with docker:
 ```
-docker run -it --rm -p 8501:8501 docker://registry.git.embl.org/grp-zimmermann-kogadeeva/plottingongenome:0.7.3
+docker run -it --rm -p 8501:8501 docker://registry.git.embl.org/grp-zimmermann-kogadeeva/maphelios:0.7.3
 ```
 
 ### Apptainer
 
 To run the streamlit app with apptainer:
 ```
-apptainer exec --no-home --writable-tmpfs --workdir /app docker://registry.git.embl.org/grp-zimmermann-kogadeeva/plottingongenome:0.7.3 streamlit run /app/app/app.py --server.headless true
+apptainer exec --no-home --writable-tmpfs --workdir /app docker://registry.git.embl.org/grp-zimmermann-kogadeeva/maphelios:0.7.3 streamlit run /app/app/app.py --server.headless true
 ```
 
