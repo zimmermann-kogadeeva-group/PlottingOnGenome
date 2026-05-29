@@ -3,13 +3,16 @@ requires = ["setuptools>=64.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "plotting_on_genome"
+name = "maphelios"
 version = "0.7.9"
 requires-python = ">=3.6"
 description = "Package for making genome related plots"
 readme = "README.md"
 license = {file = "LICENSE"}
-authors = [{ name = "Bartosz Bartmanski", email = "bartosz.bartmanski@embl.de" }]
+authors = [
+    { name = "Bartosz Bartmanski", email = "bartosz.bartmanski@embl.de" },
+    { name = "Katarina Erbstein", email = "katarina.erbstein@embl.de" }
+]
 
 dependencies = [
     "biopython",
@@ -24,11 +27,11 @@ dependencies = [
 streamlit = ["streamlit", "seaborn"]
 
 [project.scripts]
-pog = "plotting_on_genome.__main__:main"
+maphelios = "maphelios.__main__:main"
 
 [project.urls]
-"Homepage" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome"
-"Bug tracker" = "https://git.embl.de/grp-zimmermann-kogadeeva/PlottingOnGenome/issues/"
+"Homepage" = "https://git.embl.de/grp-zimmermann-kogadeeva/Maphelios"
+"Bug tracker" = "https://git.embl.de/grp-zimmermann-kogadeeva/Maphelios/issues/"
 
 [tool.isort]
 profile = "black"
@@ -44,7 +47,7 @@ push            = true
 
 [tool.bumpver.file_patterns]
 "pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
-"src/plotting_on_genome/__init__.py" = ['^__version__ = "{version}"$']
+"src/maphelios/__init__.py" = ['^__version__ = "{version}"$']
 
 [dependency-groups]
 dev = [
