@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "maphelios"
 version = "0.7.9"
-requires-python = ">=3.6"
+requires-python = ">=3.9"
 description = "Package for making genome related plots"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -21,6 +21,9 @@ dependencies = [
     "matplotlib",
     "pandas",
     "platformdirs",
+    "pysam>=0.23.0",
+    "pycirclize>=1.9.1",
+    "scipy>=1.13.1",
 ]
 
 [project.optional-dependencies]
