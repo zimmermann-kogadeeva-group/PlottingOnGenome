@@ -2,7 +2,7 @@
 
 import gzip
 from copy import deepcopy
-from functools import lru_cache
+from functools import lru_cache, wraps
 from itertools import cycle
 from warnings import warn
 
@@ -92,6 +92,28 @@ def get_aln_df(filename, dropna=True, drop_non_ccs=True, add_directions=True):
             )
         )
     return df.reset_index(drop=True)
+
+
+@wraps(get_aln_df)
+def get_longread_aln(
+    filename, dropna=True, drop_non_css=True, add_directions=True, **kwargs
+):
+    return get_aln_df(
+        filename,
+        dropna=dropna,
+        drop_non_ccs=drop_non_css,
+        add_directions=add_directions,
+    )
+
+
+@wraps(get_aln_df)
+def get_shortread_aln(filename, dropna=True, **kwargs):
+    return get_aln_df(
+        filename,
+        dropna=dropna,
+        drop_non_ccs=False,
+        add_directions=False,
+    )
 
 
 def read_ani(aligned_pairs):
@@ -227,6 +249,7 @@ def plot_circos(
     track_r_max=100,
     track_r_sep=5,
     track_r_pad=0.1,
+    xticks_by_interval=1_000_000,
     y_step=1_000,
     same_y_scale=False,
     palette="tab10",
@@ -236,6 +259,12 @@ def plot_circos(
 
     contig_lengths = {k: len(v) for k, v in genome.items()}
     full_genome_length = sum(contig_lengths.values())
+
+    aln_contigs = set(mapping.reference_name.unique())
+    if not set(genome.keys()).issuperset(aln_contigs):
+        raise RuntimeError(
+            "contig names in mapping dataframe contains names not present in genome"
+        )
 
     if track_sep is not None:
         all_binned_contigs = {
@@ -275,10 +304,9 @@ def plot_circos(
     if isinstance(palette, str):
         palette = cycle(color_sequences[palette])
     palette = {name: color for name, color in zip(all_binned_contigs.keys(), palette)}
-    print(palette)
 
     for track_idx, (name, counts_binned) in enumerate(all_binned_contigs.items()):
-        xticks_by_interval = 1_000_000 if track_idx == 0 else None
+        xticks_per_track = xticks_by_interval if track_idx == 0 else None
 
         plot_single_track(
             circos=circos,
@@ -289,7 +317,7 @@ def plot_circos(
             r_pad_ratio=track_r_pad,
             y_step=y_step,
             y_max=y_maxs[name],
-            xticks_by_interval=xticks_by_interval,
+            xticks_by_interval=xticks_per_track,
             color=palette[name],
         )
 
