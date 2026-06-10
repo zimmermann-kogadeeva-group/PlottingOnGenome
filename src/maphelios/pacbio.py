@@ -618,3 +618,106 @@ def get_counts(mapping, contig_lengths, group="read_direction", bin_size=1000):
         .pivot(index=["pos", "contig"], columns="name", values="counts")
         .reset_index()
     )
+
+def plot_scatter(
+    df=None, 
+    genome=None, 
+    contig_len=None,
+    bin_size=1_000,
+    color="darkblue",
+    x_label="fwd reads bin counts", 
+    y_label="rev reads bin counts",
+    plot_title= "Number of reads per bin"
+):
+    #Check genome related arguments
+    if genome is None and contig_len is None:
+        raise ValueError("Either contig_lengths or genome needs to be given")
+    if contig_len is None: 
+        contig_len = {k: len(v) for k, v in genome.items()}
+    
+    #Check df related arguments
+    if df is None:
+        raise ValueError("Dataframe is missing")
+    if 'read_direction' not in df.columns:
+        raise ValueError("Column 'read_direction' is missing") 
+    
+    #Split df based on directionality of reads
+    track1_df = df.query("read_direction == 'fwd'")
+    track2_df = df.query("read_direction == 'rev'")
+    #Count sequences per bin. Bin_size is an input of the user
+    track1_bin_counts = bin_all_contigs(track1_df, contig_len, width = bin_size)
+    track2_bin_counts = bin_all_contigs(track2_df, contig_len, width = bin_size)
+    
+    #Create dfs containig the dictionary keys (contig names) and their respective counts and positions
+    df_track1 = []
+    for contig, (positions_array, counts_array) in track1_bin_counts.items():
+        for pos, count in zip(positions_array, counts_array):
+            df_track1.append({
+                "contig": contig,
+                "bin_position": pos,
+                "counts_per_bin": count
+                })
+        df_track1=pd.DataFrame(df_track1)
+    
+    df_track2 = []
+    for contig, (positions_array, counts_array) in track2_bin_counts.items():
+        for pos, count in zip(positions_array, counts_array):
+            df_track2.append({
+                "contig": contig,
+                "bin_position": pos,
+                "counts_per_bin": count
+                })
+        df_track2=pd.DataFrame(df_track2)
+    
+    # Plot counted bins 
+    fig, ax = plt.subplots()
+    ax.scatter(df_track1["counts_per_bin"], df_track2["counts_per_bin"], color=color)
+    ax.set(xlabel=x_label, ylabel=y_label, title=plot_title)
+
+    return df_track1, df_track2, fig, ax
+
+def QCplot_read_length_dist(
+    df=None, 
+    bins=100, 
+    color="darkblue", 
+    log_scale=True
+):
+    fig, ax = plt.subplots()
+
+    ax.hist(df["READ_LEN"], bins=bins, color=color)
+
+    ax.set_xlabel("Read Length [bp]")
+    ax.set_ylabel("Count")
+
+    if log_scale:
+        ax.set_yscale("log")
+
+    ax.set_title(
+        "Distribution of Read Lengths (log scale)" if log_scale
+        else "Distribution of Read Lengths"
+    )
+
+    return fig, ax
+
+def QCplot_MAPQscore_dist(
+    df=None,
+    bins=100, 
+    color="darkblue", 
+    log_scale=True
+):
+    fig, ax = plt.subplots()
+    
+    ax.hist(df["mapping_quality"], bins=bins, color=color)
+    
+    ax.set_xlabel("Mapping Quality")
+    ax.set_ylabel("Count")
+    
+    if log_scale:
+        ax.set_yscale("log")
+    
+    ax.set_title(
+        "Distribution of Mapping Quality (log scale)" if log_scale
+        else "Distribution of Mapping Quality"
+    )
+    
+    return fig, ax
