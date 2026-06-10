@@ -29,9 +29,6 @@ dependencies = [
 [project.optional-dependencies]
 streamlit = ["streamlit", "seaborn"]
 
-[project.scripts]
-maphelios = "maphelios.__main__:main"
-
 [project.urls]
 "Homepage" = "https://git.embl.de/grp-zimmermann-kogadeeva/Maphelios"
 "Bug tracker" = "https://git.embl.de/grp-zimmermann-kogadeeva/Maphelios/issues/"

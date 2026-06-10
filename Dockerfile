@@ -12,7 +12,6 @@ COPY pyproject.toml /app
 COPY app/ /app/app/
 COPY src/ /app/src/
 
-# Installing pog package
 RUN uv sync --extra streamlit --no-dev --no-cache
 
 # Installing deps
