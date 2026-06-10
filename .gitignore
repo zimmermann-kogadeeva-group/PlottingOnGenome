@@ -6,6 +6,7 @@ output/
 
 # Python related
 .venv/
+.tox/
 __pycache__/
 *.egg-info/
 dist/
