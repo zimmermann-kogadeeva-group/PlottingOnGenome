@@ -20,7 +20,9 @@ from pycirclize import Circos
 from scipy.signal import find_peaks
 
 
-class MyTranslator(BiopythonTranslator):
+# Class with label_fields class attribute over-written - needed due to product element
+# being missing
+class BioTranslator(BiopythonTranslator):
     label_fields = [
         "label",
         "name",
@@ -48,7 +50,7 @@ def reorder_cols(data, cols):
     return data.get(cols_in_data + rest_cols)
 
 
-def get_aln_df(filename, dropna=True, drop_non_ccs=True, add_directions=True):
+def get_aln_df(filename, dropna, drop_non_ccs, add_directions):
     attr_names = (
         "reference_name",
         "reference_start",
@@ -155,7 +157,7 @@ def bin_intervals(starts, ends, length, width=10_000):
     return bins, counts
 
 
-def bin_all_contigs(mapping, contig_lengths, width=10_000):
+def _bin_all_contigs(mapping, contig_lengths, bin_size=1000, as_df=False):
 
     counts = {
         contig: bin_intervals(
@@ -164,16 +166,90 @@ def bin_all_contigs(mapping, contig_lengths, width=10_000):
             .values.transpose()
             .tolist(),
             contig_len,
-            width,
+            bin_size,
         )
         for contig, contig_len in contig_lengths.items()
     }
+    if as_df:
+        return pd.concat(
+            [
+                pd.DataFrame(
+                    {"start": pos[:-1], "end": pos[1:], "counts": counts_per_contig}
+                ).assign(contig=contig)
+                for contig, (pos, counts_per_contig) in counts.items()
+            ],
+            ignore_index=True,
+        )
 
     return counts
 
 
+def bin_all_contigs(mapping, contig_lengths, bin_size=1000, group=None, as_df=False):
+    if group is None:
+        return _bin_all_contigs(mapping, contig_lengths, bin_size, as_df=as_df)
+
+    grouped_counts = {
+        name: _bin_all_contigs(g, contig_lengths, bin_size, as_df=as_df)
+        for name, g in mapping.groupby(group)
+    }
+
+    if not as_df:
+        return grouped_counts
+
+    return (
+        pd.concat(
+            [data.assign(name=name) for name, data in grouped_counts.items()],
+            ignore_index=True,
+        )
+        .pivot(index=["start", "end", "contig"], columns="name", values="counts")
+        .reset_index()
+    )
+
+
 def get_max_across_contigs(counts_binned):
     return max(x[1].max() for x in counts_binned.values())
+
+
+def add_global_ticks(circos, xticks_by_interval, track_radii, track_width=2):
+    # 1. build contig sizes (local to this block)
+    contig_names = [s.name for s in circos.sectors]
+    contig_lengths = {s.name: (s.end - s.start) for s in circos.sectors}
+
+    # 2. compute cumulative genome offsets
+    sector_offsets = {}
+    offset = 0
+    for name in contig_names:
+        sector_offsets[name] = offset
+        offset += contig_lengths[name]
+    genome_size = offset
+
+    # 3. global tick positions (based on xticks_by_interval)
+    global_ticks = np.arange(0, genome_size + xticks_by_interval, xticks_by_interval)
+
+    # 4. draw ruler per sector (mapped global → local)
+    for i, sector in enumerate(circos.sectors):
+
+        ruler = sector.add_track((38, 40), r_pad_ratio=0.1)
+        ruler.axis(ec="none")
+
+        ticks = []
+        labels = []
+
+        start = sector_offsets[sector.name]
+        length = contig_lengths[sector.name]
+
+        for g in global_ticks:
+
+            # skip ticks not in this sector
+            if not (start <= g < start + length):
+                continue
+
+            local = g - start
+
+            ticks.append(local)
+            labels.append(f"{g / 1_000_000:.1f} Mb")
+
+        ruler.xticks(ticks, labels, outer=False, label_orientation="vertical")
 
 
 def plot_single_track(
@@ -186,12 +262,13 @@ def plot_single_track(
     y_step=1000,
     y_max=None,
     xticks_by_interval=None,
+    xticks_orient="vertical",
     color="violet",
 ):
     if y_max is None:
         y_max = get_max_across_contigs(counts_binned)
     if y_step > y_max:
-        new_y_step = round(y_max, -2) // 4
+        new_y_step = max(round(y_max, -2) // 4, 1)
         warn(
             f"y_step was too large ({y_step} > {y_max}): changed y_step to {new_y_step}"
         )
@@ -225,6 +302,7 @@ def plot_single_track(
                 xticks_by_interval,
                 outer=False,
                 label_formatter=lambda v, o=offset: f"{(v + o)/1_000_000:.1f} Mb",
+                label_orientation=xticks_orient,
             )
 
         offset += sector_width
@@ -250,6 +328,9 @@ def plot_circos(
     track_r_sep=5,
     track_r_pad=0.1,
     xticks_by_interval=1_000_000,
+    xticks_orient="vertical",
+    xticks_global=True,
+    xticks_ruler_width=2,
     y_step=1_000,
     same_y_scale=False,
     palette="tab10",
@@ -268,12 +349,12 @@ def plot_circos(
 
     if track_sep is not None:
         all_binned_contigs = {
-            name: bin_all_contigs(g, contig_lengths, width=bin_size)
+            name: bin_all_contigs(g, contig_lengths, bin_size=bin_size)
             for name, g in mapping.groupby(track_sep)
         }
     else:
         all_binned_contigs = {
-            "all": bin_all_contigs(mapping, contig_lengths, width=bin_size)
+            "all": bin_all_contigs(mapping, contig_lengths, bin_size=bin_size)
         }
 
     num_tracks = len(all_binned_contigs)
@@ -306,7 +387,20 @@ def plot_circos(
     palette = {name: color for name, color in zip(all_binned_contigs.keys(), palette)}
 
     for track_idx, (name, counts_binned) in enumerate(all_binned_contigs.items()):
-        xticks_per_track = xticks_by_interval if track_idx == 0 else None
+        if xticks_global:
+            # If global ticks are used, i.e. with their own track, then set
+            # xticks_per_track to None, so nothing is labelled in any of the
+            # tracks
+            xticks_per_track = None
+            # Add the new track just for xticks
+            add_global_ticks(
+                circos,
+                xticks_by_interval,
+                track_r_min - xticks_ruler_width,
+                xticks_ruler_width,
+            )
+        else:
+            xticks_per_track = xticks_by_interval if track_idx == 0 else None
 
         plot_single_track(
             circos=circos,
@@ -318,6 +412,7 @@ def plot_circos(
             y_step=y_step,
             y_max=y_maxs[name],
             xticks_by_interval=xticks_per_track,
+            xticks_orient=xticks_orient,
             color=palette[name],
         )
 
@@ -381,7 +476,7 @@ def _get_graphic_record_genes(genome, start, end, feature_types=None, col="#ebf3
     if feature_types is None:
         feature_types = {x.type for x in genes}
 
-    conv = BiopythonTranslator()
+    conv = BioTranslator()
     conv.default_feature_color = col
     features = [conv.translate_feature(x) for x in genes if x.type in feature_types]
 
@@ -508,53 +603,45 @@ def subset_genes_by_peaks(
     return df_subset.pipe(reorder_cols, cols_order)
 
 
+def get_gene_coverage(ref_start, ref_end, gene_start, gene_end):
+    return np.select(
+        [
+            (ref_start < gene_start) & (ref_end > gene_end),
+            (ref_start > gene_start) & (ref_end > gene_end) & (ref_start < gene_end),
+            (ref_end < gene_end) & (ref_start < gene_start) & (ref_end > gene_start),
+            (gene_start < ref_start)
+            & (ref_start < gene_end)
+            & (gene_start < ref_end)
+            & (ref_end < gene_end),
+        ],
+        [
+            1,
+            (gene_end - ref_start) / (gene_end - gene_start),
+            (ref_end - gene_start) / (gene_end - gene_start),
+            (ref_end - ref_start) / (gene_end - gene_start),
+        ],
+        default=0,
+    )
+
+
 def quantify_overlap(reads_df, gene_start, gene_end, gene_seq, contig_name, peak_idx):
-    df_subset = reads_df.query(
-        f"contig_name == '{contig_name}' and peak_idx == {peak_idx}"
-    )
-    df_full_overlap = df_subset.query(
-        f"reference_start < {gene_start} and reference_end > {gene_end}"
-    ).assign(coverage=1)
-
-    df_left_overlap = df_subset.query(
-        f"reference_start > {gene_start} and "
-        f"reference_end > {gene_end} and "
-        f"reference_start < {gene_end}"
-    ).assign(
-        coverage=lambda x: (gene_end - x.reference_start) / (gene_end - gene_start)
-    )
-
-    df_right_overlap = df_subset.query(
-        f"reference_end < {gene_end} and "
-        f"reference_start < {gene_start} and "
-        f"reference_end > {gene_start}"
-    ).assign(
-        coverage=lambda x: (x.reference_end - gene_start) / (gene_end - gene_start)
-    )
-
-    # This is separate to avoid overcounting
-    df_inside_overlap = df_subset.query(
-        f"{gene_start} < reference_start < {gene_end} and "
-        f"{gene_start} < reference_end < {gene_end}"
-    ).assign(
-        coverage=lambda x: (x.reference_end - x.reference_start)
-        / (gene_end - gene_start)
-    )
-
-    df_combined = (
-        pd.concat(
-            [df_full_overlap, df_left_overlap, df_right_overlap, df_inside_overlap],
-            ignore_index=True,
+    df_subset = (
+        reads_df.query(f"contig_name == '{contig_name}' and peak_idx == {peak_idx}")
+        .assign(
+            coverage=lambda x: get_gene_coverage(
+                x.reference_start, x.reference_end, gene_start, gene_end
+            ),
         )
+        .query("coverage > 0")
         .assign(
             gene_ANI=lambda x: x.aligned_pairs.apply(
                 gene_ani, gene_start=gene_start, gene_end=gene_end
-            )
+            ),
         )
         .drop(columns="aligned_pairs")
     )
 
-    return df_combined
+    return df_subset
 
 
 def get_genes2mappings(df_mapping, df_genes):
@@ -601,123 +688,120 @@ def plot_all_peaks(
     return figs
 
 
-def get_counts(mapping, contig_lengths, group="read_direction", bin_size=1000):
+def plot_bp_coverage(counts_df, ax=None, log_scale=True, vlines_kwargs=None, **kwargs):
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    vlines_opts = dict(lw=2, color="black")
+    if vlines_kwargs is None:
+        vlines_kwargs = {}
+    vlines_kwargs = vlines_opts | vlines_kwargs
+
+    mean, std = counts_df.counts.describe().loc[["mean", "std"]]
+
+    sns.histplot(counts_df, x="counts", ax=ax, **kwargs)
+    if log_scale:
+        ax.set_yscale("log")
+
+    # Mean
+    ax.axvline(mean, ls="-", **vlines_kwargs)
+
+    # +/-  2 * std lines
+    ax.axvline(mean - 2 * std, ls="--", **vlines_kwargs)
+    ax.axvline(mean + 2 * std, ls="--", **vlines_kwargs)
+    return ax
+
+
+def regions_without_cov(mapping):
+    # 1. Sort by start
+    s = mapping.sort_values("reference_start").reset_index(drop=True)
+
+    # 2. Merge overlapping / touching ranges
+    merged = []
+    cur_start, cur_end = s.loc[0, "reference_start"], s.loc[0, "reference_end"]
+    for start, end in zip(s["reference_start"].iloc[1:], s["reference_end"].iloc[1:]):
+        if start <= cur_end:  # overlap or touch
+            cur_end = max(cur_end, end)
+        else:
+            merged.append((cur_start, cur_end))
+            cur_start, cur_end = start, end
+    merged.append((cur_start, cur_end))
+
+    # 3. Gaps between consecutive merged ranges
+    return pd.DataFrame(
+        [(e1, s2) for (_, e1), (s2, _) in zip(merged, merged[1:])],
+        columns=["reference_start", "reference_end"],
+    )
+
+
+def extract_features(feature, ranges_df, cov_threshold=1):
+    if feature.type != "gene":
+        return {}
+
+    gene_start = int(feature.location.start)
+    gene_end = int(feature.location.end)
+
+    coverage = get_gene_coverage(
+        ranges_df.reference_start, ranges_df.reference_end, gene_start, gene_end
+    )
+    overlap = np.any(coverage >= cov_threshold)
+
+    if not overlap:
+        return {}
+
+    q = feature.qualifiers
+
+    # KEGG KO
+    kegg = q.get("kegg", [None])[0]
+    if kegg and kegg.startswith("ko:"):
+        kegg = kegg.replace("ko:", "")
+
+    # Gene name with fallback priority
+    gene_name = (
+        q.get("gene", [None])[0]
+        or q.get("Name", [None])[0]
+        or q.get("locus_tag", [None])[0]
+    )
+
+    # GO terms
+    go_terms = q.get("Ontology_term", None)
+
+    # Strand / orientation
+    strand = {1: "+", -1: "-", None: "."}.get(feature.location.strand)
+
+    return {
+        "start": gene_start,
+        "end": gene_end,
+        "strand": strand,
+        "gene": gene_name,
+        "kegg": kegg,
+        "go": go_terms,
+    }
+
+
+def get_gene_orient(data, strand_col="strand"):
     return (
-        pd.concat(
-            [
-                pd.DataFrame({"pos": pos[:-1], "counts": counts}).assign(
-                    contig=contig, name=name
-                )
-                for name, g in mapping.groupby(group)
-                for contig, (pos, counts) in bin_all_contigs(
-                    g, contig_lengths, width=bin_size
-                ).items()
-            ],
-            ignore_index=True,
-        )
-        .pivot(index=["pos", "contig"], columns="name", values="counts")
-        .reset_index()
+        data.groupby(strand_col, as_index=False)
+        .agg(num=pd.NamedAgg(strand_col, "count"))
+        .assign(fraction=lambda x: x.num / x.num.sum())
     )
 
-def plot_scatter(
-    df=None, 
-    genome=None, 
-    contig_len=None,
-    bin_size=1_000,
-    color="darkblue",
-    x_label="fwd reads bin counts", 
-    y_label="rev reads bin counts",
-    plot_title= "Number of reads per bin"
-):
-    #Check genome related arguments
-    if genome is None and contig_len is None:
-        raise ValueError("Either contig_lengths or genome needs to be given")
-    if contig_len is None: 
-        contig_len = {k: len(v) for k, v in genome.items()}
-    
-    #Check df related arguments
-    if df is None:
-        raise ValueError("Dataframe is missing")
-    if 'read_direction' not in df.columns:
-        raise ValueError("Column 'read_direction' is missing") 
-    
-    #Split df based on directionality of reads
-    track1_df = df.query("read_direction == 'fwd'")
-    track2_df = df.query("read_direction == 'rev'")
-    #Count sequences per bin. Bin_size is an input of the user
-    track1_bin_counts = bin_all_contigs(track1_df, contig_len, width = bin_size)
-    track2_bin_counts = bin_all_contigs(track2_df, contig_len, width = bin_size)
-    
-    #Create dfs containig the dictionary keys (contig names) and their respective counts and positions
-    df_track1 = []
-    for contig, (positions_array, counts_array) in track1_bin_counts.items():
-        for pos, count in zip(positions_array, counts_array):
-            df_track1.append({
-                "contig": contig,
-                "bin_position": pos,
-                "counts_per_bin": count
-                })
-        df_track1=pd.DataFrame(df_track1)
-    
-    df_track2 = []
-    for contig, (positions_array, counts_array) in track2_bin_counts.items():
-        for pos, count in zip(positions_array, counts_array):
-            df_track2.append({
-                "contig": contig,
-                "bin_position": pos,
-                "counts_per_bin": count
-                })
-        df_track2=pd.DataFrame(df_track2)
-    
-    # Plot counted bins 
-    fig, ax = plt.subplots()
-    ax.scatter(df_track1["counts_per_bin"], df_track2["counts_per_bin"], color=color)
-    ax.set(xlabel=x_label, ylabel=y_label, title=plot_title)
 
-    return df_track1, df_track2, fig, ax
+def plot_gene_orient(data, strand_col="strand", y_col="fraction", ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
 
-def QCplot_read_length_dist(
-    df=None, 
-    bins=100, 
-    color="darkblue", 
-    log_scale=True
-):
-    fig, ax = plt.subplots()
+    df_genes_orient = get_gene_orient(data, strand_col)
+    sns.barplot(df_genes_orient, x=strand_col, y=y_col, ax=ax)
 
-    ax.hist(df["READ_LEN"], bins=bins, color=color)
+    return ax
 
-    ax.set_xlabel("Read Length [bp]")
-    ax.set_ylabel("Count")
 
-    if log_scale:
-        ax.set_yscale("log")
-
-    ax.set_title(
-        "Distribution of Read Lengths (log scale)" if log_scale
-        else "Distribution of Read Lengths"
-    )
-
-    return fig, ax
-
-def QCplot_MAPQscore_dist(
-    df=None,
-    bins=100, 
-    color="darkblue", 
-    log_scale=True
-):
-    fig, ax = plt.subplots()
-    
-    ax.hist(df["mapping_quality"], bins=bins, color=color)
-    
-    ax.set_xlabel("Mapping Quality")
-    ax.set_ylabel("Count")
-    
-    if log_scale:
-        ax.set_yscale("log")
-    
-    ax.set_title(
-        "Distribution of Mapping Quality (log scale)" if log_scale
-        else "Distribution of Mapping Quality"
-    )
-    
-    return fig, ax
+def get_genes_within_regions(genome, regions_df, cov_threshold=1):
+    return pd.DataFrame(
+        [
+            {"contig": chrom, **extract_features(feature, regions_df, cov_threshold)}
+            for chrom, record in genome.items()
+            for feature in record.features
+        ]
+    ).dropna(subset="start")

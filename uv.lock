@@ -2263,7 +2263,7 @@ wheels = [
 
 [[package]]
 name = "maphelios"
-version = "0.7.9"
+version = "0.8.8"
 source = { editable = "." }
 dependencies = [
     { name = "bcbio-gff" },
